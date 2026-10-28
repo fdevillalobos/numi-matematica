@@ -85,3 +85,19 @@ export const MISSIONS = [
   { id: 'magic', emoji: '✨', text: 'Hacé una práctica mágica', key: 'smart', goal: 1 },
 ];
 export const MISSION_PRIZE = 10;
+
+// Cosas que dice Numi en el inicio (curiosidades y ánimo).
+export const NUMI_SAYS = [
+  '¿Sabías que cualquier número por 0 da 0? ¡Es magia! 🪄',
+  '¿Sabías que 9 × 9 = 81 y 8 + 1 = 9? ¡La tabla del 9 tiene trucos!',
+  'Truco: para multiplicar por 10 le agregás un 0 al final. 7 × 10 = 70 🎉',
+  '¿Sabías que 3 × 4 da lo mismo que 4 × 3? ¡Podés darla vuelta!',
+  'Las abejas hacen sus casitas con forma de hexágono: ¡6 lados! 🐝',
+  'Una araña tiene 8 patas. ¿Cuántas patas tienen 3 arañas? 🕷️',
+  'Un pulpo tiene 8 brazos. ¡2 pulpos tienen 16! 🐙',
+  'Si practicás un poquito cada día, ¡tu cerebro se pone más fuerte! 💪',
+  'Equivocarse está bien: ¡así aprende el cerebro! 🧠',
+  '¿Sabías que una semana tiene 7 días? ¡7 × 4 son casi un mes!',
+  'La tabla del 5 siempre termina en 0 o en 5. ¡Fijate! ✋',
+  'Duplicar es multiplicar por 2: 6 + 6 = 12 = 2 × 6 ✌️',
+];

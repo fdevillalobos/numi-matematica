@@ -5,7 +5,7 @@ import { load, save, reset, exportJson, importJson } from './store.js';
 import { sfx, say, unlock as unlockAudio, configure as configureSound, spanishVoices, currentVoice } from './sound.js';
 import { confetti, bigCelebration } from './fx.js';
 import { mascot, bubble, toast, modal, esc, progressRing, starsHtml, setOutfit } from './ui.js';
-import { AVATARS, STICKERS, RARITY, PACK_COST, BADGES, OUTFITS, MISSIONS, MISSION_PRIZE } from './data.js';
+import { AVATARS, STICKERS, RARITY, PACK_COST, BADGES, OUTFITS, MISSIONS, MISSION_PRIZE, NUMI_SAYS } from './data.js';
 import { dotArray } from './visuals.js';
 import { playScreen, BOSSES } from './game.js';
 import { balloonsScreen } from './balloons.js';
@@ -243,13 +243,15 @@ const SCREENS = {
     const mulFront = frontier(state, 'mul');
     const greet = state.totals.problems === 0
       ? `${hello}, ${name}! ¿Arrancamos?`
-      : (state.daily[todayKey()]?.goalDone ? `¡Ya cumpliste tu meta de hoy, ${name}! 🎉 ¿Un poquito más?` : `${hello}, ${name}! Hoy podemos practicar <b>${esc(mulFront.name)}</b> 🚀`);
+      : (state.daily[todayKey()]?.goalDone ? `¡Ya cumpliste tu meta de hoy, ${name}! 🎉 ¿Un poquito más?`
+        : Math.random() < 0.5 ? `${hello}, ${name}! Hoy podemos practicar <b>${esc(mulFront.name)}</b> 🚀`
+        : NUMI_SAYS[Math.floor(Math.random() * NUMI_SAYS.length)]);
     root.innerHTML = `<div class="screen home">
       ${topbar()}
       <section class="hero">
         <button class="hero-mascot js-numi" aria-label="Vestir a Numi">${mascot('happy', 190, 'bob')}<span class="numi-tag">👗 Vestime</span></button>
         <div class="hero-right">
-          ${bubble(greet, 'bubble-left big')}
+          ${bubble(greet, 'bubble-left big js-greet')}
           <div class="hero-btns"><button class="btn btn-magic js-smart"><span class="sparkle">✨</span> Práctica mágica<small>Numi elige lo justo para vos</small></button>
           ${state.lastChest !== todayKey() ? '<button class="chest js-chest" aria-label="Cofre del día"><span>🎁</span><b>¡Cofre del día!</b></button>' : ''}</div>
           ${missionsHtml()}
@@ -288,6 +290,11 @@ const SCREENS = {
     root.querySelector('.js-balloons').addEventListener('click', () => { unlockAudio(); sfx('tap'); app.go('balloons'); });
     root.querySelector('.js-numi').addEventListener('click', () => { unlockAudio(); sfx('pop'); app.go('shop'); });
     root.querySelector('.js-chest')?.addEventListener('click', () => { unlockAudio(); openChest(); });
+    root.querySelector('.js-greet').addEventListener('click', (e) => {
+      sfx('pop');
+      e.currentTarget.innerHTML = NUMI_SAYS[Math.floor(Math.random() * NUMI_SAYS.length)];
+      e.currentTarget.classList.remove('pop'); void e.currentTarget.offsetWidth; e.currentTarget.classList.add('pop');
+    });
   },
 
   world({ op, msg, highlight }) {
