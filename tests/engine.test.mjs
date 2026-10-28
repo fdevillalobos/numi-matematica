@@ -180,3 +180,12 @@ test('explicaciones: resta pidiendo prestado a través de un cero', async () => 
   assert.match(html, /9 − 2 = 7/);
   assert.match(html, /4 − 1 = 3/);
 });
+
+test('en sumas no hay "número que falta": se practican sumas, no ecuaciones', () => {
+  const state = defaultState();
+  for (const s of SKILLS.filter((k) => k.op === 'add')) {
+    const st = skillState(state, s.id);
+    st.attempts = 40; // ya practicado: es cuando antes aparecía 'missing'
+    for (let i = 0; i < 300; i++) assert.notEqual(generate(state, s.id).format, 'missing', s.id);
+  }
+});

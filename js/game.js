@@ -30,7 +30,7 @@ export function playScreen(app, session) {
     const sk = skillForTable(session.table);
     queue = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]).map((x) => {
       const swap = Math.random() < 0.3;
-      return makeProblem(sk, swap ? x : session.table, swap ? session.table : x, pickFormat(skillState(state, sk)));
+      return makeProblem(sk, swap ? x : session.table, swap ? session.table : x, pickFormat(skillState(state, sk), 'mul'));
     });
   } else if (kind === 'jump') queue = buildLesson(state, session.skill, 5).map((p) => makeProblem(p.skill, p.a, p.b, 'input'));
   else if (kind === 'placement') placement = new Placement(state);
@@ -203,7 +203,8 @@ export function playScreen(app, session) {
     const s = OPS[p.op].sym;
     const box = p.format === 'choice' ? '<span class="answer-box q">?</span>' : `<span class="answer-box js-answer ${input ? 'filled' : ''}">${input || '&nbsp;'}</span>`;
     if (p.story) return storyHtml(p, box);
-    const vertical = p.format !== 'missing' && (((p.op === 'add' || p.op === 'sub') && Math.min(p.a, p.b) >= 10) || (p.op === 'mul' && Math.max(p.a, p.b) >= 11));
+    // En columna: sumas y restas con números de dos cifras o más (23 + 4, 67 + 21), y multiplicaciones grandes.
+    const vertical = p.format !== 'missing' && (((p.op === 'add' || p.op === 'sub') && (Math.min(p.a, p.b) >= 10 || Math.max(p.a, p.b) >= 20)) || (p.op === 'mul' && Math.max(p.a, p.b) >= 11));
     if (vertical) {
       const [top, bottom] = p.op === 'mul' ? [Math.max(p.a, p.b), Math.min(p.a, p.b)] : [p.a, p.b];
       return columnHtml(p, top, bottom, s, box);

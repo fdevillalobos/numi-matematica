@@ -140,11 +140,16 @@ export function makeProblem(skillId, a, b, format = 'input') {
   return p;
 }
 
+// Ops donde se practica "el número que falta" (a × ? = c). En sumas no:
+// ahí se practican sumas, no ecuaciones.
+const MISSING_OPS = new Set(['sub', 'mul', 'div']);
+
 // Elige el formato según qué tan nuevo es el nivel para la nena.
-export function pickFormat(stat) {
+export function pickFormat(stat, op) {
   const n = stat ? stat.attempts : 0;
   const r = rand();
   if (n < 6) return r < 0.5 ? 'choice' : 'input';
+  if (op && !MISSING_OPS.has(op)) return r < (n < 25 ? 0.3 : 0.2) ? 'choice' : 'input';
   if (n < 25) return r < 0.3 ? 'choice' : r < 0.85 ? 'input' : 'missing';
   return r < 0.15 ? 'choice' : r < 0.75 ? 'input' : 'missing';
 }
@@ -240,7 +245,7 @@ export function generate(state, skillId, format) {
     const key = `${a},${b}`;
     if (key !== state._lastPair) { state._lastPair = key; break; }
   }
-  return makeProblem(skillId, a, b, format || pickFormat(stat));
+  return makeProblem(skillId, a, b, format || pickFormat(stat, skill.op));
 }
 
 export function buildLesson(state, skillId, n = 10) {
