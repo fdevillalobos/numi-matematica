@@ -8,7 +8,7 @@ import { sfx, say } from './sound.js';
 import { confetti, flyStar } from './fx.js';
 import { mascot, modal, esc } from './ui.js';
 import { PRAISE, COMBO_PRAISE, OOPS } from './data.js';
-import { inkPad, segmentTo, setPersonalTemplates, logSample, compact } from './ink.js';
+import { inkPad, segmentTo, setPersonalTemplates, logSample, compact, notesLayer } from './ink.js';
 
 const pickOne = (a) => a[Math.floor(Math.random() * a.length)];
 const SPEED_SECONDS = 60;
@@ -83,8 +83,10 @@ export function playScreen(app, session) {
           <div class="play-tools">
             ${kind !== 'speed' && kind !== 'placement' && kind !== 'jump' && kind !== 'boss' ? '<button class="tool js-hint">💡 Ayuda</button>' : ''}
             ${pencilOn ? '<button class="tool js-mode" aria-label="Cambiar forma de responder">✏️ Lápiz</button>' : ''}
+            <button class="tool js-notes-clear" hidden aria-label="Borrar notas">🧽 Notas</button>
             <button class="tool js-say" aria-label="Escuchar">🔊</button>
           </div>
+          <span class="notes-hint">✏️ Podés anotar acá</span>
         </div>
         <div class="play-label">${esc(labelFor())}</div>
       </section>
@@ -94,6 +96,14 @@ export function playScreen(app, session) {
 
   const $ = (s) => root.querySelector(s);
   const card = $('.js-card');
+  // Hoja borrador sobre la cuenta: anota lo que se lleva, cuentas parciales, lo que quiera.
+  const notes = notesLayer(card, {
+    onChange: (n) => {
+      const b = root.querySelector('.js-notes-clear');
+      if (b) b.hidden = !n;
+      card.classList.toggle('noted', n > 0);
+    },
+  });
 
   function labelFor() {
     if (kind === 'lesson' || kind === 'jump') return `${world.emoji} ${SKILL[session.skill].name}${kind === 'jump' ? ' · Prueba de salto' : ''}`;
@@ -168,6 +178,27 @@ export function playScreen(app, session) {
     return `<div class="story"><p class="story-text">${text}</p><div class="story-pic">${pic}</div><div class="story-ans">${box}</div></div>`;
   }
 
+  // Cuenta en columna, cifra por cifra. En sumas y multiplicaciones hay cajitas
+  // punteadas arriba de las decenas/centenas para anotar lo que se lleva.
+  function columnHtml(p, top, bottom, sym, box) {
+    const T = String(top), B = String(bottom);
+    const n = Math.max(T.length, B.length, String(p.c).length);
+    const carries = p.op === 'add' || p.op === 'mul';
+    const cell = (v, cls = '') => `<span class="vc ${cls}">${v}</span>`;
+    const row = (str, first = '') => cell(first, first ? 'vc-op' : '') + Array.from({ length: n }, (_, k) => {
+      const ch = str[str.length - n + k];
+      return cell(ch ?? '');
+    }).join('');
+    let html = `<div class="vgrid" style="--n:${n}">`;
+    // fila de "me llevo": cajita sobre cada columna menos las unidades
+    html += cell('') + Array.from({ length: n }, (_, k) => (carries && k < n - 1 ? cell('', 'vc-carry') : cell(''))).join('');
+    html += row(T);
+    html += row(B, `<i>${sym}</i>`);
+    html += '<hr class="vc-line">';
+    html += `<div class="vc-ans">${box}</div>`;
+    return html + '</div>';
+  }
+
   function problemHtml(p) {
     const s = OPS[p.op].sym;
     const box = p.format === 'choice' ? '<span class="answer-box q">?</span>' : `<span class="answer-box js-answer ${input ? 'filled' : ''}">${input || '&nbsp;'}</span>`;
@@ -175,7 +206,7 @@ export function playScreen(app, session) {
     const vertical = p.format !== 'missing' && (((p.op === 'add' || p.op === 'sub') && Math.min(p.a, p.b) >= 10) || (p.op === 'mul' && Math.max(p.a, p.b) >= 11));
     if (vertical) {
       const [top, bottom] = p.op === 'mul' ? [Math.max(p.a, p.b), Math.min(p.a, p.b)] : [p.a, p.b];
-      return `<div class="vertical"><span>${top}</span><span><i>${s}</i>${bottom}</span><hr>${box}</div>`;
+      return columnHtml(p, top, bottom, s, box);
     }
     const len = String(p.a).length + String(p.b).length + String(p.c).length;
     const size = len > 7 ? 'sm' : len > 5 ? 'md' : 'lg';
@@ -265,6 +296,7 @@ export function playScreen(app, session) {
       current._storyChecked = true;
       if (small && Math.random() < 0.18) current.story = true;
     }
+    notes.clear();
     $('.js-problem').innerHTML = problemHtml(current);
     fitProblem();
     card.classList.remove('good', 'bad', 'shake');
@@ -547,6 +579,7 @@ export function playScreen(app, session) {
       setMascot('party', pickOne(['¡Jiji, me hacés cosquillas!', '¡Vos podés!', '¡Pensá tranquila!', '¡Sos mi matemática favorita!', '¡Vamos, Isabella!'.replace('Isabella', state.profile?.name || 'Isabella')]));
       setTimeout(() => { if (!dead && !locked) setMascot('happy'); }, 1600);
     }
+    if (e.target.closest('.js-notes-clear')) { sfx('pop'); notes.clear(); }
     if (e.target.closest('.js-hint')) showHint();
     if (e.target.closest('.js-mode') && current && !locked && (current.format === 'input' || current.format === 'draw')) {
       sfx('pop');
@@ -574,6 +607,7 @@ export function playScreen(app, session) {
   addEventListener('resize', fitProblem);
   function cleanup() {
     dead = true;
+    notes.destroy();
     removeEventListener('resize', fitProblem);
     pad?.destroy();
     document.removeEventListener('keydown', keyHandler);

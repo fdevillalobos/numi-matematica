@@ -704,3 +704,20 @@ p { margin: 0.4em 0; line-height: 1.4; }
 .scribble-wrap.used .ink-hint { opacity: 0; }
 .scribble-wrap.shake { animation: shake 0.5s; }
 @media (orientation: portrait) { .scribble-wrap { height: 360px; } }
+
+/* ---------- cuenta en columna con cajitas para lo que se lleva ---------- */
+.vgrid { display: inline-grid; grid-template-columns: 0.75em repeat(var(--n), 0.72em); font-size: 104px; line-height: 1.05; font-weight: 900; margin: 0 auto; font-variant-numeric: tabular-nums; justify-items: center; align-items: end; }
+.vgrid .vc-op i { font-style: normal; color: var(--c); }
+.vc-carry { width: 0.46em; height: 0.46em; margin-bottom: 0.08em; border: 0.035em dashed var(--c); border-radius: 0.1em; background: color-mix(in srgb, var(--cs) 60%, transparent); }
+.vc-line { grid-column: 1 / -1; width: 100%; border: 0; border-top: 0.075em solid var(--ink); border-radius: 4px; margin: 0.08em 0 0.12em; }
+.vc-ans { grid-column: 1 / -1; justify-self: end; }
+.vc-ans .answer-box { min-width: 1.6em; }
+@media (min-height: 950px) { .play .vgrid { font-size: 112px; } }
+@media (max-width: 900px) { .vgrid { font-size: 68px; } }
+
+/* ---------- notas sobre la cuenta ---------- */
+.problem-card { touch-action: none; }
+.notes-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; border-radius: 34px; }
+.play-tools { position: relative; z-index: 4; }
+.notes-hint { position: absolute; top: 14px; left: 22px; font-size: 16px; font-weight: 800; color: var(--c); opacity: 0.55; pointer-events: none; transition: opacity 0.3s; }
+.problem-card.noted .notes-hint { opacity: 0; }

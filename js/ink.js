@@ -247,7 +247,12 @@ export function inkPad(container, { onChange, expected = 0 }) {
       ctx.stroke();
     }
   }
-  const pos = (e) => { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+  // Corrige si la tarjeta está animándose (escalada): coordenadas en px del lienzo.
+  const pos = (e) => {
+    const r = canvas.getBoundingClientRect();
+    const kx = r.width ? canvas.clientWidth / r.width : 1, ky = r.height ? canvas.clientHeight / r.height : 1;
+    return { x: (e.clientX - r.left) * kx, y: (e.clientY - r.top) * ky };
+  };
 
   let activeId = null;
   const read = () => (strokes.length ? recognize(strokes, expected).text : '');
@@ -309,3 +314,96 @@ export function logSample(state, digit, strokes, src) {
 // Achica un trazo a ~40 puntos enteros para guardarlo.
 export const compact = (strokes) => strokes.filter((st) => st.length > 1)
   .map((st) => st.filter((_, k) => k % Math.max(1, Math.ceil(st.length / 40)) === 0).map((p) => ({ x: Math.round(p.x), y: Math.round(p.y) })));
+
+// ---------- notas: escribir con el lápiz encima de la cuenta ----------
+// No se reconoce nada: es una hoja borrador transparente sobre la tarjeta.
+// Los botones de la tarjeta siguen funcionando; con el lápiz se ignora la palma.
+export function notesLayer(host, { onChange } = {}) {
+  const canvas = document.createElement('canvas');
+  canvas.className = 'notes-canvas';
+  host.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  let strokes = [];
+  let cur = null;
+  let activeId = null;
+  let penSeen = false;
+
+  function size() {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = host.clientWidth * dpr;
+    canvas.height = host.clientHeight * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    redraw();
+  }
+  function redraw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#2F6BFF';
+    ctx.lineWidth = 6;
+    for (const s of strokes.concat(cur ? [cur] : [])) {
+      ctx.beginPath();
+      s.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+      if (s.length === 1) ctx.lineTo(s[0].x + 0.1, s[0].y);
+      ctx.stroke();
+    }
+  }
+  // Corrige si la tarjeta está animándose (escalada): coordenadas en px del lienzo.
+  const pos = (e) => {
+    const r = canvas.getBoundingClientRect();
+    const kx = r.width ? canvas.clientWidth / r.width : 1, ky = r.height ? canvas.clientHeight / r.height : 1;
+    return { x: (e.clientX - r.left) * kx, y: (e.clientY - r.top) * ky };
+  };
+  const onButton = (e) => e.target.closest('button, input, select, a');
+
+  const down = (e) => {
+    if (cur || onButton(e)) return;
+    if (e.pointerType === 'pen') penSeen = true;
+    else if (e.pointerType === 'touch' && (penSeen || e.width > 40)) return; // la palma
+    e.preventDefault();
+    try { host.setPointerCapture(e.pointerId); } catch (err) { /* sin captura */ }
+    cur = [pos(e)];
+    activeId = e.pointerId;
+    redraw();
+  };
+  const move = (e) => {
+    if (!cur || e.pointerId !== activeId) return;
+    let evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+    if (!evs.length) evs = [e];
+    for (const ev of evs) cur.push(pos(ev));
+    redraw();
+  };
+  const up = (e) => {
+    if (!cur || e.pointerId !== activeId) return;
+    strokes.push(cur);
+    cur = null;
+    activeId = null;
+    redraw();
+    onChange?.(strokes.length);
+  };
+  const noTouch = (e) => { if (!onButton(e)) e.preventDefault(); };
+  host.addEventListener('pointerdown', down);
+  host.addEventListener('pointermove', move);
+  host.addEventListener('pointerup', up);
+  host.addEventListener('pointercancel', up);
+  host.addEventListener('touchstart', noTouch, { passive: false });
+  host.addEventListener('touchmove', noTouch, { passive: false });
+  const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(size) : null;
+  ro?.observe(host);
+  size();
+
+  return {
+    clear() { strokes = []; cur = null; activeId = null; redraw(); onChange?.(0); },
+    count: () => strokes.length,
+    destroy() {
+      ro?.disconnect();
+      host.removeEventListener('pointerdown', down);
+      host.removeEventListener('pointermove', move);
+      host.removeEventListener('pointerup', up);
+      host.removeEventListener('pointercancel', up);
+      host.removeEventListener('touchstart', noTouch);
+      host.removeEventListener('touchmove', noTouch);
+      canvas.remove();
+    },
+  };
+}
