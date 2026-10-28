@@ -201,7 +201,7 @@ export function inkPad(container, { onChange }) {
 
   canvas.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'pen') penSeen = true;
-    else if (penSeen && e.pointerType === 'touch') return; // ignorar la palma
+    else if (e.pointerType === 'touch' && (penSeen || e.width > 40 || cur)) return; // ignorar la palma
     e.preventDefault();
     try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* sin captura */ }
     pad.classList.add('used');
