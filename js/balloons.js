@@ -56,7 +56,7 @@ export function balloonsScreen(app) {
   }
 
   function step(t) {
-    const dt = last ? (t - last) / 1000 : 0;
+    const dt = last ? Math.min(0.05, (t - last) / 1000) : 0; // si la app estuvo en segundo plano, no saltar
     last = t;
     if (!busy) {
       for (const b of balloons) {
@@ -128,7 +128,7 @@ export function balloonsScreen(app) {
     app.save();
     app.checkBadges();
     sky.innerHTML = `<div class="bl-end">${mascot(record ? 'party' : 'happy', 160, 'bob')}
-      <h1>${record ? '¡Nuevo récord!' : '¡Muy bien!'}</h1><div class="speed-score">${score}</div>
+      <h1>${record ? '¡Nuevo récord!' : score >= 5 ? '¡Muy bien!' : '¡Buen intento!'}</h1><div class="speed-score">${score}</div>
       <p class="result-sub">globos reventados · récord ${Math.max(prev, score)} 🏆</p>
       <div class="row"><button class="btn btn-soft js-home">🏠 Inicio</button><button class="btn btn-go js-again">🎈 ¡Otra vez!</button></div></div>`;
     if (record && score > 0) { sfx('fanfare'); app.celebrate(); say('¡Nuevo récord!'); }

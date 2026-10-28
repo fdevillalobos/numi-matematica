@@ -199,7 +199,10 @@ export function inkPad(container, { onChange }) {
   }
   const pos = (e) => { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
 
+  let activeId = null;
+  const read = () => (strokes.length ? recognize(strokes).text : '');
   canvas.addEventListener('pointerdown', (e) => {
+    if (cur) return; // ya hay un trazo en curso (otro dedo o la palma)
     if (e.pointerType === 'pen') penSeen = true;
     else if (e.pointerType === 'touch' && (penSeen || e.width > 40 || cur)) return; // ignorar la palma
     e.preventDefault();
@@ -207,23 +210,29 @@ export function inkPad(container, { onChange }) {
     pad.classList.add('used');
     clearTimeout(timer);
     cur = [pos(e)];
+    activeId = e.pointerId;
     redraw();
   });
   canvas.addEventListener('pointermove', (e) => {
-    if (!cur) return;
+    if (!cur || e.pointerId !== activeId) return;
     let evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
     if (!evs.length) evs = [e];
     for (const ev of evs) cur.push(pos(ev));
     redraw();
   });
-  const end = () => {
-    if (!cur) return;
+  const end = (e) => {
+    if (!cur || e.pointerId !== activeId) return;
     strokes.push(cur);
     cur = null;
+    activeId = null;
     redraw();
     clearTimeout(timer);
-    timer = setTimeout(() => onChange(recognize(strokes).text), 220);
+    timer = setTimeout(() => onChange(read()), 220);
   };
+  // Que Scribble / la lupa de iPadOS no corten los trazos rápidos
+  const stopTouch = (e) => e.preventDefault();
+  canvas.addEventListener('touchstart', stopTouch, { passive: false });
+  canvas.addEventListener('touchmove', stopTouch, { passive: false });
   canvas.addEventListener('pointerup', end);
   canvas.addEventListener('pointercancel', end);
   canvas.style.touchAction = 'none';
@@ -231,9 +240,11 @@ export function inkPad(container, { onChange }) {
   addEventListener('resize', size);
 
   return {
-    clear() { strokes = []; cur = null; pad.classList.remove('used'); redraw(); onChange(''); },
-    undo() { strokes.pop(); redraw(); onChange(strokes.length ? recognize(strokes).text : ''); },
+    clear() { clearTimeout(timer); strokes = []; cur = null; activeId = null; pad.classList.remove('used'); redraw(); onChange(''); },
+    undo() { clearTimeout(timer); strokes.pop(); redraw(); onChange(read()); },
+    // Lee ya mismo (al tocar ✓ justo después de escribir)
+    flush() { clearTimeout(timer); if (cur) { strokes.push(cur); cur = null; activeId = null; } const t = read(); onChange(t); return t; },
     strokes: () => strokes,
-    destroy() { removeEventListener('resize', size); },
+    destroy() { clearTimeout(timer); removeEventListener('resize', size); },
   };
 }

@@ -73,7 +73,11 @@ export function modal(html, { cls = '', onClose, dismissable = true } = {}) {
   wrap.innerHTML = `<div class="modal ${cls}">${dismissable ? '<button class="modal-x" data-close aria-label="Cerrar">✕</button>' : ''}${html}</div>`;
   document.body.appendChild(wrap);
   requestAnimationFrame(() => wrap.classList.add('show'));
+  let closed = false;
   const close = () => {
+    if (closed) return;
+    closed = true;
+    wrap.style.pointerEvents = 'none';
     wrap.classList.remove('show');
     setTimeout(() => wrap.remove(), 250);
     onClose?.();

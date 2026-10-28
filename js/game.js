@@ -59,6 +59,7 @@ export function playScreen(app, session) {
   let speedTimer = null;
   let pad = null;
   let bossHp = BOSS_HP;
+  let dead = false; // la pantalla ya se cerró
   const pencilOn = state.settings.pencil !== false && kind !== 'speed' && kind !== 'placement';
   setPersonalTemplates(state.ink);
 
@@ -171,7 +172,7 @@ export function playScreen(app, session) {
   function updateModeBtn() {
     const b = root.querySelector('.js-mode');
     if (!b) return;
-    b.hidden = current.format === 'choice';
+    b.hidden = current.format === 'choice' || current.format === 'missing';
     b.textContent = current.format === 'draw' ? '🔢 Teclado' : '✏️ Lápiz';
   }
 
@@ -185,6 +186,7 @@ export function playScreen(app, session) {
       pad = inkPad(el.querySelector('.js-pad'), { onChange: (t) => { input = t.slice(0, 4); updateAnswer(); } });
       el.querySelector('.js-ink-clear').addEventListener('click', () => { sfx('pop'); pad.clear(); });
       el.querySelector('.js-ink-ok').addEventListener('click', () => {
+        input = pad.flush().slice(0, 4);
         if (input) check(input);
         else { const pd = el.querySelector('.ink-pad'); pd.classList.remove('shake'); void pd.offsetWidth; pd.classList.add('shake'); }
       });
@@ -205,6 +207,7 @@ export function playScreen(app, session) {
   }
 
   function next() {
+    if (dead) return;
     locked = false;
     input = '';
     hinted = false;
@@ -379,6 +382,7 @@ export function playScreen(app, session) {
   }
 
   function showExplanation(p, value) {
+    if (dead) return;
     const ex = explain(p);
     say(ex.speech);
     const m = modal(`<div class="explain">
@@ -398,6 +402,7 @@ export function playScreen(app, session) {
   }
 
   function finishJump(passed) {
+    if (dead) return;
     cleanup();
     const s = SKILL[session.skill];
     if (passed) {
@@ -420,8 +425,9 @@ export function playScreen(app, session) {
   }
 
   function finish() {
-    cleanup();
+    if (dead) return;
     if (kind === 'jump') return finishJump(firstTryCorrect === mainCount);
+    cleanup();
     if (kind === 'placement') {
       const result = placement.apply();
       state.placementDone = true;
@@ -500,7 +506,7 @@ export function playScreen(app, session) {
         .el.querySelector('.js-leave').addEventListener('click', () => { document.querySelector('.modal-wrap')?.remove(); cleanup(); app.back(); });
     }
     if (e.target.closest('.js-hint')) showHint();
-    if (e.target.closest('.js-mode') && current && !locked && current.format !== 'choice') {
+    if (e.target.closest('.js-mode') && current && !locked && (current.format === 'input' || current.format === 'draw')) {
       sfx('pop');
       current.format = current.format === 'draw' ? 'input' : 'draw';
       input = '';
@@ -524,6 +530,7 @@ export function playScreen(app, session) {
 
   addEventListener('resize', fitProblem);
   function cleanup() {
+    dead = true;
     removeEventListener('resize', fitProblem);
     pad?.destroy();
     document.removeEventListener('keydown', keyHandler);

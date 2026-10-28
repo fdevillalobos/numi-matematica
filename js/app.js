@@ -140,7 +140,7 @@ function levelUp(level) {
   sfx('levelup');
   bigCelebration();
   say(`¡Subiste al nivel ${level}!`);
-  if (currentScreen?.name === 'play') { notify(`🎉 ¡Subiste al <b>nivel ${level}</b>!`, 'crown'); return; }
+  if (['play', 'balloons'].includes(currentScreen?.name)) { notify(`🎉 ¡Subiste al <b>nivel ${level}</b>!`, 'crown'); return; }
   modal(`<div class="center levelup">${mascot('party', 170)}<div class="levelup-badge">${level}</div><h2>¡Subiste de nivel!</h2>
     <p>Ahora sos nivel <b>${level}</b>. ¡Seguí así, ${esc(state.profile?.name || '')}!</p><button class="btn btn-big btn-go" data-close>¡Yupi! 🎉</button></div>`);
 }
@@ -381,10 +381,12 @@ const SCREENS = {
         </div>
       </div></div>`;
     const bs = root.querySelectorAll('.bs');
+    let alive = true;
+    app.onLeave(() => { alive = false; });
     bs.forEach((el, i) => {
-      if (i < r.stars) setTimeout(() => { el.classList.add('on'); sfx('star'); const rc = el.getBoundingClientRect(); confetti({ x: rc.left + rc.width / 2, y: rc.top + rc.height / 2, count: 30, spread: 0.6 }); }, 500 + i * 450);
+      if (i < r.stars) setTimeout(() => { if (!alive) return; el.classList.add('on'); sfx('star'); const rc = el.getBoundingClientRect(); confetti({ x: rc.left + rc.width / 2, y: rc.top + rc.height / 2, count: 30, spread: 0.6 }); }, 500 + i * 450);
     });
-    if (r.stars === 3) setTimeout(() => { bigCelebration(); sfx('fanfare'); }, 1900);
+    if (r.stars === 3) setTimeout(() => { if (alive) { bigCelebration(); sfx('fanfare'); } }, 1900);
     say(`${title.replace(/[¡!]/g, '')} ${r.correct} de ${r.total}`);
     const again = () => app.play(s);
     root.querySelector('.js-again').addEventListener('click', again);
@@ -708,6 +710,9 @@ const SCREENS = {
     $('.js-place').addEventListener('click', () => app.play({ kind: 'placement' }));
     $('.js-teach').addEventListener('click', () => app.go('teach'));
     $('.js-export').addEventListener('click', () => {
+      const name = `numi-${todayKey()}.json`;
+      const file = new File([exportJson(state)], name, { type: 'application/json' });
+      if (navigator.canShare?.({ files: [file] })) { navigator.share({ files: [file], title: 'Progreso de Numi' }).catch(() => {}); return; }
       const blob = new Blob([exportJson(state)], { type: 'application/json' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
@@ -822,7 +827,8 @@ function openPack() {
 // ---------- arranque ----------
 document.addEventListener('gesturestart', (e) => e.preventDefault());
 document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
-document.addEventListener('pointerdown', unlockAudio, { once: true });
+document.addEventListener('touchend', unlockAudio, { passive: true });
+document.addEventListener('click', unlockAudio);
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {});

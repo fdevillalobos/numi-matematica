@@ -267,6 +267,12 @@ export function hint(p) {
     text ||= `Pensá: ¿qué número por ${b} da ${a}? Contá de ${b} en ${b} hasta llegar a ${a}.`;
     visual = `<div class="skip">${range(Math.min(10, c + 2)).map((i) => `<span>${(i + 1) * b}</span>`).join('')}</div>`;
   }
+  // En "¿cuál falta?" el dibujo no puede mostrar el número escondido: se cuenta desde a hasta c.
+  if (p.format === 'missing') {
+    if (p.op === 'mul') visual = `<div class="skip">${range(Math.min(12, Math.ceil(c / a) + 1)).map((i) => `<span>${(i + 1) * a}</span>`).join('')}</div>`;
+    else if (p.op === 'add' && c <= 20) visual = tenFrames([...range(a).map(() => 'a')]);
+    else visual = '';
+  }
   return `<div class="explain-q">${questionLine(p, false)}</div><div class="explain-visual">${visual}</div><p class="hint-text">💡 ${text}</p>`;
 }
 
