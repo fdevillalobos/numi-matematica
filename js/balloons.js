@@ -123,6 +123,7 @@ export function balloonsScreen(app) {
     const prev = state.records.balloons || 0;
     const record = score > prev;
     if (record) state.records.balloons = score;
+    app.track('balloons');
     state.totals.lessons++;
     app.save();
     app.checkBadges();

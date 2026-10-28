@@ -76,6 +76,7 @@ export function playScreen(app, session) {
         <div class="problem-card js-card"><div class="problem js-problem"></div>
           <div class="play-tools">
             ${kind !== 'speed' && kind !== 'placement' && kind !== 'jump' ? '<button class="tool js-hint">💡 Ayuda</button>' : ''}
+            ${pencilOn ? '<button class="tool js-mode" aria-label="Cambiar forma de responder">✏️ Lápiz</button>' : ''}
             <button class="tool js-say" aria-label="Escuchar">🔊</button>
           </div>
         </div>
@@ -139,6 +140,13 @@ export function playScreen(app, session) {
     return `<div class="horizontal ${size}"><span>${p.a}</span><i>${s}</i><span>${p.b}</span><i>=</i>${box}</div>`;
   }
 
+  function updateModeBtn() {
+    const b = root.querySelector('.js-mode');
+    if (!b) return;
+    b.hidden = current.format === 'choice';
+    b.textContent = current.format === 'draw' ? '🔢 Teclado' : '✏️ Lápiz';
+  }
+
   function renderInput() {
     const el = $('.js-input');
     pad?.destroy();
@@ -193,6 +201,7 @@ export function playScreen(app, session) {
     void card.offsetWidth;
     card.classList.add('enter');
     renderInput();
+    updateModeBtn();
     renderProgress();
     shownAt = performance.now();
   }
@@ -249,6 +258,7 @@ export function playScreen(app, session) {
   }
 
   function onCorrect(p) {
+    if (p.format === 'draw') app.track('draw');
     learnInk(p);
     combo++;
     bestCombo = Math.max(bestCombo, combo);
@@ -264,6 +274,7 @@ export function playScreen(app, session) {
     }
     app.addXp(kind === 'placement' ? 5 : 10 + Math.min(combo, 10));
     state.totals.bestCombo = Math.max(state.totals.bestCombo, combo);
+    if (combo >= 2) app.track('combo', combo, 'max');
     card.classList.add('good');
     const box = root.querySelector('.js-answer');
     if (box) box.innerHTML = p.answer;
@@ -377,6 +388,7 @@ export function playScreen(app, session) {
       const prev = state.records[key] || 0;
       const record = correctCount > prev;
       if (record) state.records[key] = correctCount;
+      app.track('speed');
       state.totals.lessons++;
       app.save();
       app.checkBadges();
@@ -394,6 +406,8 @@ export function playScreen(app, session) {
     earned += bonus;
     state.totals.lessons++;
     if (firstTryCorrect === mainCount) state.totals.perfect++;
+    app.track(kind === 'lesson' ? 'lesson' : kind === 'table' ? 'table' : 'smart');
+    if (kind !== 'lesson') app.track('lesson');
     app.save();
     app.checkBadges();
     app.go('result', {
@@ -430,6 +444,14 @@ export function playScreen(app, session) {
         .el.querySelector('.js-leave').addEventListener('click', () => { document.querySelector('.modal-wrap')?.remove(); cleanup(); app.back(); });
     }
     if (e.target.closest('.js-hint')) showHint();
+    if (e.target.closest('.js-mode') && current && !locked && current.format !== 'choice') {
+      sfx('pop');
+      current.format = current.format === 'draw' ? 'input' : 'draw';
+      input = '';
+      updateAnswer();
+      renderInput();
+      updateModeBtn();
+    }
     if (e.target.closest('.js-say') && current) say(speakProblem(current));
   });
   const keyHandler = (e) => {

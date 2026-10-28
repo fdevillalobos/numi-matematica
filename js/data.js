@@ -70,3 +70,16 @@ export const OUTFITS = [
   { id: 'o_icecream', slot: 'hand', emoji: '🍦', name: 'Helado', cost: 25 },
   { id: 'o_heart', slot: 'hand', emoji: '💖', name: 'Corazón', cost: 30 },
 ];
+
+// Misiones del día: cada día se eligen 3.
+export const MISSIONS = [
+  { id: 'lesson', emoji: '📘', text: 'Terminá 2 lecciones', key: 'lesson', goal: 2 },
+  { id: 'balloons', emoji: '🎈', text: 'Jugá a los globos', key: 'balloons', goal: 1 },
+  { id: 'combo', emoji: '🔥', text: 'Hacé una racha de 8', key: 'combo', goal: 8 },
+  { id: 'table', emoji: '🔢', text: 'Practicá una tabla', key: 'table', goal: 1 },
+  { id: 'speed', emoji: '⏱️', text: 'Hacé una carrera', key: 'speed', goal: 1 },
+  { id: 'draw', emoji: '✏️', text: 'Respondé 5 con el lápiz', key: 'draw', goal: 5 },
+  { id: 'problems', emoji: '💪', text: 'Resolvé 30 problemas', key: 'correct', goal: 30 },
+  { id: 'magic', emoji: '✨', text: 'Hacé una práctica mágica', key: 'smart', goal: 1 },
+];
+export const MISSION_PRIZE = 10;

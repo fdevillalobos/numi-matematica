@@ -5,7 +5,7 @@ import { load, save, reset, exportJson, importJson } from './store.js';
 import { sfx, say, unlock as unlockAudio, configure as configureSound, spanishVoices, currentVoice } from './sound.js';
 import { confetti, bigCelebration } from './fx.js';
 import { mascot, bubble, toast, modal, esc, progressRing, starsHtml, setOutfit } from './ui.js';
-import { AVATARS, STICKERS, RARITY, PACK_COST, BADGES, OUTFITS } from './data.js';
+import { AVATARS, STICKERS, RARITY, PACK_COST, BADGES, OUTFITS, MISSIONS, MISSION_PRIZE } from './data.js';
 import { dotArray } from './visuals.js';
 import { playScreen } from './game.js';
 import { balloonsScreen } from './balloons.js';
@@ -80,7 +80,45 @@ const app = {
     save(state);
   },
   celebrate: bigCelebration,
+  // Contadores del día para las misiones.
+  track(key, value = 1, mode = 'add') {
+    const d = (state.daily[todayKey()] ||= { problems: 0, correct: 0, ms: 0 });
+    d.counts ||= {};
+    d.counts[key] = mode === 'max' ? Math.max(d.counts[key] || 0, value) : (d.counts[key] || 0) + value;
+    d.missionsDone ||= {};
+    for (const m of todayMissions()) {
+      const n = m.key === 'correct' ? d.correct : d.counts[m.key] || 0;
+      if (!d.missionsDone[m.id] && n >= m.goal) {
+        d.missionsDone[m.id] = true;
+        state.stars += MISSION_PRIZE;
+        notify(`✅ Misión cumplida: <b>${m.emoji} ${esc(m.text)}</b> +${MISSION_PRIZE}⭐`, 'goal');
+        sfx('levelup');
+      }
+    }
+    save(state);
+  },
 };
+
+function todayMissions() {
+  // Elección estable por día
+  const k = todayKey();
+  let h = 0;
+  for (const c of k) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const pool = MISSIONS.slice();
+  const out = [];
+  while (out.length < 3) { out.push(pool.splice(h % pool.length, 1)[0]); h = Math.floor(h / 7) + 13; }
+  return out;
+}
+
+function missionsHtml() {
+  const d = state.daily[todayKey()] || {};
+  return `<div class="missions"><b class="missions-title">Misiones de hoy</b>${todayMissions().map((m) => {
+    const n = Math.min(m.goal, m.key === 'correct' ? d.correct || 0 : d.counts?.[m.key] || 0);
+    const done = d.missionsDone?.[m.id];
+    return `<div class="mission ${done ? 'done' : ''}"><span>${done ? '✅' : m.emoji}</span><div><b>${esc(m.text)}</b>
+      <i class="mbar"><i style="width:${(n / m.goal) * 100}%"></i></i></div><small>${done ? '¡Listo!' : `${n}/${m.goal}`}</small></div>`;
+  }).join('')}</div>`;
+}
 
 // Cola de avisos para que no se pisen.
 const notes = [];
@@ -213,6 +251,7 @@ const SCREENS = {
           ${bubble(greet, 'bubble-left big')}
           <div class="hero-btns"><button class="btn btn-magic js-smart"><span class="sparkle">✨</span> Práctica mágica<small>Numi elige lo justo para vos</small></button>
           ${state.lastChest !== todayKey() ? '<button class="chest js-chest" aria-label="Cofre del día"><span>🎁</span><b>¡Cofre del día!</b></button>' : ''}</div>
+          ${missionsHtml()}
         </div>
       </section>
       <section class="worlds">
