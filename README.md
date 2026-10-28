@@ -6,9 +6,9 @@ It's a web app made to be installed on the iPad (PWA): it opens full screen from
 
 ## What it has
 
-- **4 worlds**: Sums 🏝️, Subtraction 🌳, Multiplication 🚀 and Division 🏰, with 28 levels that go from "sums up to 5" to "3-digit numbers", "all the times tables" and "2-digit × 1-digit".
+- **4 worlds**: Sums 🏝️, Subtraction 🌳, Multiplication 🚀 and Division 🏰, with 31 levels that go from "sums up to 5" to "3-digit numbers", "all the times tables" and "2-digit × 1-digit".
 - **Placement challenge**: at the start it asks questions that get harder and harder, and opens the levels she already knows.
-- **Adaptive engine**: each level measures *mastery* (accuracy + speed). When she reaches 85% it opens the next level on its own; with speed she earns the 👑 crown. Times-table facts she misses come back more often (spaced repetition).
+- **Adaptive engine**: each level measures *mastery* (accuracy + speed); with speed she earns the 👑 crown. The next level opens only after completing several lessons of the level with 2⭐ or more (4 in the carrying sums), so she practices a lot before moving on. For now there are no "missing number" problems (3 + ☐ = 5). Times-table facts she misses come back more often (spaced repetition).
 - **Three ways to answer**: number keypad, bubble multiple choice, and **writing with the Apple Pencil** (an on-device digit recognizer that learns her handwriting). She can switch between pencil and keypad with a button. By default the handwriting is read by **Apple's Scribble** (iPadOS's handwriting recognition; it must be on in Settings › Apple Pencil › Scribble). The alternative is Numi's own recognizer, which learns her handwriting: in *For grown-ups › Enseñarle mi letra a Numi* she writes 24 digits.
   Every labeled sample (from teach mode, or from an answer confirmed as correct) is saved, and *Exportar muestras de letra* downloads it as JSON to improve the recognizer with real kids' handwriting.
 - **Visual corrections**: when she gets one wrong, Numi shows how it's done: ten-frames, dot arrays for multiplication, groups for division, and column calculations with "me llevo" (carrying) and "pido prestado" (borrowing).

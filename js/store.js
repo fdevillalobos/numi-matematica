@@ -1,4 +1,4 @@
-import { initSkills } from './engine.js';
+import { initSkills, normalizeUnlocks } from './engine.js';
 
 const KEY = 'numi-math-v1';
 
@@ -47,6 +47,7 @@ export function load() {
     if (raw) {
       const s = merge(defaultState(), JSON.parse(raw));
       if (s.profile?.name === 'Isabela') s.profile.name = 'Isabella';
+      normalizeUnlocks(s);
       return s;
     }
   } catch (e) {

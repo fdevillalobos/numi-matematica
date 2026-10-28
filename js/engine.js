@@ -60,8 +60,21 @@ export const SKILLS = [
     const t1 = rnd(1, 8), t2 = rnd(1, 9 - t1), u1 = rnd(0, 9), u2 = rnd(0, 9 - u1);
     return [t1 * 10 + u1, t2 * 10 + u2];
   } },
-  { id: 'add6', op: 'add', name: 'Dos cifras llevando', target: 10, gen: () => {
+  // Llevando: muchos pasitos y mucha práctica en cada uno (need = lecciones con 2⭐ para avanzar).
+  { id: 'add5c', op: 'add', name: 'Llevando con una cifra', target: 8, need: 4, gen: () => {
+    const t1 = rnd(1, 8), u1 = rnd(2, 9); return [t1 * 10 + u1, rnd(10 - u1, 9)];
+  } },
+  { id: 'add6', op: 'add', name: 'Dos cifras llevando', target: 10, need: 4, gen: () => {
     const t1 = rnd(1, 7), t2 = rnd(1, 8 - t1); let u1, u2; do { u1 = rnd(1, 9); u2 = rnd(1, 9); } while (u1 + u2 < 10);
+    return [t1 * 10 + u1, t2 * 10 + u2];
+  } },
+  { id: 'add6b', op: 'add', name: 'Llevando: ¡más práctica!', target: 10, need: 4, gen: () => {
+    const t1 = rnd(1, 7), t2 = rnd(1, 8 - t1); let u1, u2; do { u1 = rnd(3, 9); u2 = rnd(3, 9); } while (u1 + u2 < 12);
+    return [t1 * 10 + u1, t2 * 10 + u2];
+  } },
+  { id: 'add6c', op: 'add', name: 'Llevando y pasando el 100', target: 12, need: 3, gen: () => {
+    let t1, t2, u1, u2;
+    do { t1 = rnd(2, 9); t2 = rnd(1, 9); u1 = rnd(1, 9); u2 = rnd(1, 9); } while (u1 + u2 < 10 || t1 + t2 + 1 < 10 || t1 + t2 + 1 > 19);
     return [t1 * 10 + u1, t2 * 10 + u2];
   } },
   { id: 'add7', op: 'add', name: 'Tres cifras', target: 14, gen: () => { const a = rnd(100, 799); return [a, rnd(100, 999 - a)]; } },
@@ -140,18 +153,14 @@ export function makeProblem(skillId, a, b, format = 'input') {
   return p;
 }
 
-// Ops donde se practica "el número que falta" (a × ? = c). En sumas no:
-// ahí se practican sumas, no ecuaciones.
-const MISSING_OPS = new Set(['sub', 'mul', 'div']);
-
 // Elige el formato según qué tan nuevo es el nivel para la nena.
-export function pickFormat(stat, op) {
+// "El número que falta" (3 + ☐ = 5) por ahora no se usa: Isa está en primer grado
+// y eso viene mucho más adelante. makeProblem(…, 'missing') sigue funcionando.
+export function pickFormat(stat) {
   const n = stat ? stat.attempts : 0;
   const r = rand();
   if (n < 6) return r < 0.5 ? 'choice' : 'input';
-  if (op && !MISSING_OPS.has(op)) return r < (n < 25 ? 0.3 : 0.2) ? 'choice' : 'input';
-  if (n < 25) return r < 0.3 ? 'choice' : r < 0.85 ? 'input' : 'missing';
-  return r < 0.15 ? 'choice' : r < 0.75 ? 'input' : 'missing';
+  return r < (n < 25 ? 0.3 : 0.2) ? 'choice' : 'input';
 }
 
 export function makeChoices(p) {
@@ -245,7 +254,7 @@ export function generate(state, skillId, format) {
     const key = `${a},${b}`;
     if (key !== state._lastPair) { state._lastPair = key; break; }
   }
-  return makeProblem(skillId, a, b, format || pickFormat(stat, skill.op));
+  return makeProblem(skillId, a, b, format || pickFormat(stat));
 }
 
 export function buildLesson(state, skillId, n = 10) {
@@ -334,12 +343,8 @@ export function recordAnswer(state, p, ok, ms, { hinted = false } = {}) {
     st.crowned = true;
     events.push({ type: 'crown', skill: p.skill });
   }
-  // Auto-promoción: si domina el nivel, abre el siguiente.
-  const nx = nextSkill(p.skill);
-  if (nx && st.mastery >= 85 && st.recent.length >= 12 && !skillState(state, nx.id).unlocked) {
-    skillState(state, nx.id).unlocked = true;
-    events.push({ type: 'unlock', skill: nx.id });
-  }
+  // No se abre el siguiente nivel desde acá: se avanza terminando lecciones del nivel
+  // (ver finishLesson), para que practique bastante antes de pasar.
   if (before < st.mastery) events.push({ type: 'mastery', skill: p.skill, value: st.mastery });
   return events;
 }
@@ -363,18 +368,34 @@ export function lessonStars(correct, total) {
 }
 
 // Cierra una lección de un nivel: estrellas y desbloqueo del siguiente.
+// Lecciones con 2⭐ o más que pide cada nivel antes de abrir el siguiente.
+export const lessonsNeeded = (skillId) => SKILL[skillId].need ?? 2;
+
 export function finishLesson(state, skillId, correct, total) {
   const events = [];
   const st = skillState(state, skillId);
   const stars = lessonStars(correct, total);
   st.lessons++;
+  if (stars >= 2) st.good = (st.good || 0) + 1;
   if (stars > st.stars) st.stars = stars;
+  const need = lessonsNeeded(skillId);
   const nx = nextSkill(skillId);
-  if (nx && stars >= 2 && !skillState(state, nx.id).unlocked) {
+  if (nx && (st.good || 0) >= need && !skillState(state, nx.id).unlocked) {
     skillState(state, nx.id).unlocked = true;
     events.push({ type: 'unlock', skill: nx.id });
   }
-  return { stars, events };
+  return { stars, events, good: st.good || 0, need };
+}
+
+// Si se agregan niveles nuevos en el medio de un mundo, los que quedan antes
+// del nivel actual se abren (para no dejar huecos cerrados en el mapa).
+export function normalizeUnlocks(state) {
+  for (const w of WORLDS) {
+    const list = skillsOf(w.id);
+    let last = -1;
+    list.forEach((s, i) => { if (state.skills[s.id]?.unlocked) last = i; });
+    for (let i = 0; i < last; i++) skillState(state, list[i].id).unlocked = true;
+  }
 }
 
 // ---------- Desafío inicial (ubicación) ----------

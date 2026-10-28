@@ -59,19 +59,16 @@ test('formato "missing" pide el segundo número', () => {
   assert.equal(p.c, 21);
 });
 
-test('dominio sube con respuestas correctas y rápidas, y desbloquea el siguiente', () => {
+test('dominio sube con respuestas correctas y rápidas, pero practicar no salta de nivel', () => {
   const state = defaultState();
   assert.equal(skillState(state, 'mul1').unlocked, true);
-  assert.equal(skillState(state, 'mul2').unlocked, false);
-  let unlocked = false;
-  for (let i = 0; i < 14; i++) {
-    const p = generate(state, 'mul1', 'input');
-    const ev = recordAnswer(state, p, true, 1500);
-    if (ev.some((e) => e.type === 'unlock' && e.skill === 'mul2')) unlocked = true;
+  for (let i = 0; i < 30; i++) {
+    const ev = recordAnswer(state, generate(state, 'mul1', 'input'), true, 1500);
+    assert.ok(!ev.some((e) => e.type === 'unlock'), 'no se abre el siguiente solo por responder');
   }
-  assert.ok(unlocked);
   assert.ok(skillState(state, 'mul1').mastery >= 90);
   assert.ok(skillState(state, 'mul1').crowned);
+  assert.equal(skillState(state, 'mul2').unlocked, false);
 });
 
 test('respuestas lentas o incorrectas no coronan', () => {
@@ -87,14 +84,47 @@ test('computeMastery con pocos datos es bajo', () => {
   assert.ok(computeMastery(st, SKILL.add1) <= 10);
 });
 
-test('lección con 2+ estrellas abre el siguiente nivel', () => {
+test('hacen falta varias lecciones con 2+ estrellas para abrir el siguiente nivel', () => {
   const state = defaultState();
-  const r = finishLesson(state, 'add1', 8, 10);
+  let r = finishLesson(state, 'add1', 8, 10);
   assert.equal(r.stars, 2);
+  assert.equal(skillState(state, 'add2').unlocked, false);
+  finishLesson(state, 'add1', 3, 10); // 0 estrellas: no cuenta
+  assert.equal(skillState(state, 'add2').unlocked, false);
+  r = finishLesson(state, 'add1', 10, 10);
   assert.ok(skillState(state, 'add2').unlocked);
-  const r2 = finishLesson(state, 'add2', 4, 10);
-  assert.equal(r2.stars, 0);
-  assert.equal(skillState(state, 'add3').unlocked, false);
+  assert.ok(r.events.some((e) => e.type === 'unlock' && e.skill === 'add2'));
+});
+
+test('los niveles de sumas llevando piden 4 lecciones y llevan de verdad', () => {
+  const state = defaultState();
+  for (const id of ['add5c', 'add6', 'add6b']) assert.equal(SKILL[id].need, 4);
+  for (let i = 0; i < 400; i++) {
+    const p = generate(state, 'add5c', 'input');
+    assert.ok(p.b < 10 && (p.a % 10) + p.b >= 10 && p.c < 100, `${p.a}+${p.b}`);
+    const q = generate(state, 'add6c', 'input');
+    assert.ok((q.a % 10) + (q.b % 10) >= 10 && q.c >= 100 && q.c < 200, `${q.a}+${q.b}`);
+  }
+  const order = SKILLS.filter((s) => s.op === 'add').map((s) => s.id);
+  assert.deepEqual(order, ['add1', 'add2', 'add3', 'add4', 'add5', 'add5c', 'add6', 'add6b', 'add6c', 'add7']);
+});
+
+test('ningún nivel usa "el número que falta"', () => {
+  const state = defaultState();
+  for (const s of SKILLS) {
+    skillState(state, s.id).attempts = 50;
+    for (let i = 0; i < 200; i++) assert.notEqual(generate(state, s.id).format, 'missing', s.id);
+  }
+});
+
+test('niveles nuevos en el medio se abren si ya pasó por ahí', async () => {
+  const { normalizeUnlocks } = await import('../js/engine.js');
+  const state = defaultState();
+  skillState(state, 'add6').unlocked = true;
+  normalizeUnlocks(state);
+  assert.ok(skillState(state, 'add5c').unlocked);
+  assert.ok(skillState(state, 'add5').unlocked);
+  assert.equal(skillState(state, 'add6b').unlocked, false);
 });
 
 test('lección sin repetidos', () => {

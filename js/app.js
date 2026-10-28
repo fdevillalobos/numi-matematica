@@ -1,5 +1,5 @@
 import {
-  WORLDS, SKILL, SKILLS, skillsOf, skillState, frontier, levelFromXp, todayKey, speedOf, isWorldComplete,
+  WORLDS, SKILL, SKILLS, skillsOf, skillState, frontier, levelFromXp, todayKey, speedOf, isWorldComplete, nextSkill, lessonsNeeded,
 } from './engine.js';
 import { load, save, reset, exportJson, importJson } from './store.js';
 import { sfx, say, unlock as unlockAudio, configure as configureSound, spanishVoices, currentVoice } from './sound.js';
@@ -374,7 +374,8 @@ const SCREENS = {
         </div>
         ${unlockedNext.map((id) => `<div class="unlock-banner">🔓 ¡Desbloqueaste <b>${esc(SKILL[id].name)}</b>!</div>`).join('')}
         ${r.crowns.map((id) => `<div class="unlock-banner crown">👑 ¡Ganaste la corona de <b>${esc(SKILL[id].name)}</b>!</div>`).join('')}
-        ${r.stars < 2 && s.kind === 'lesson' ? '<p class="result-tip">Con 2 estrellas se abre el próximo nivel. ¡Probá otra vez!</p>' : ''}
+        ${s.kind === 'lesson' && !unlockedNext.length && nextSkill(s.skill) && !isUnlocked(nextSkill(s.skill).id)
+          ? `<p class="result-tip">${r.stars < 2 ? '¡Probá otra vez! Con 2⭐ la lección cuenta.' : '¡Esta lección cuenta!'} Para abrir <b>${esc(nextSkill(s.skill).name)}</b>: ${lessonDots(s.skill)}</p>` : ''}
         <div class="row">
           <button class="btn btn-soft js-again">🔁 Otra vez</button>
           ${unlockedNext.length ? `<button class="btn btn-go js-next">Siguiente nivel →</button>` : `<button class="btn btn-go js-continue">Seguir →</button>`}
@@ -754,6 +755,13 @@ const SCREENS = {
   },
 };
 
+// Pelotitas de "lecciones con 2⭐" que pide un nivel para abrir el siguiente.
+function lessonDots(id) {
+  const need = lessonsNeeded(id);
+  const good = Math.min(need, skillState(state, id).good || 0);
+  return `<span class="ldots">${Array.from({ length: need }, (_, i) => `<i class="${i < good ? 'on' : ''}">${i < good ? '⭐' : ''}</i>`).join('')}</span>`;
+}
+
 function levelCard(id, isNextLocked) {
   const s = SKILL[id];
   const st = skillState(state, id);
@@ -764,12 +772,13 @@ function levelCard(id, isNextLocked) {
   if (open) {
     body = `<div class="lc-stars">${starsHtml(st.stars)}</div>
       <div class="lc-stats"><div><b>${st.mastery}%</b><span>dominio</span></div><div><b>${sp ? sp.toFixed(1) + ' s' : '—'}</b><span>velocidad</span></div><div><b>${st.crowned ? '👑' : '—'}</b><span>corona</span></div></div>
+      ${nextSkill(id) && !isUnlocked(nextSkill(id).id) ? `<p class="lc-need">Para abrir el siguiente nivel: ${lessonsNeeded(id)} lecciones con 2⭐ o más ${lessonDots(id)}</p>` : ''}
       <p class="small">${st.crowned ? '¡Ya lo dominás! Podés practicarlo para no olvidarte.' : 'Respondé bien y rápido para ganar la corona 👑'}</p>
       <button class="btn btn-big btn-go js-play">¡Jugar! ▶</button>`;
   } else if (isNextLocked) {
-    body = `<p>Para abrir este nivel conseguí 2 estrellas en el anterior.</p>
-      <p><b>¿Ya lo sabés?</b> Hacé la <b>prueba de salto</b>: 5 preguntas, ¡todas bien!</p>
-      <button class="btn btn-big btn-jump js-jump">⚡ Prueba de salto</button>`;
+    const prev = skillsOf(s.op)[skillsOf(s.op).findIndex((k) => k.id === id) - 1];
+    body = `<p>Para abrir este nivel, practicá <b>${esc(prev.name)}</b>: ${lessonsNeeded(prev.id)} lecciones con 2⭐ o más.</p>
+      <p class="lc-need">${lessonDots(prev.id)}</p>`;
   } else {
     body = '<p>Este nivel todavía está cerrado. ¡Pasá los niveles anteriores para llegar acá!</p>';
   }
