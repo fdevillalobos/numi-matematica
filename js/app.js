@@ -7,7 +7,7 @@ import { confetti, bigCelebration } from './fx.js';
 import { mascot, bubble, toast, modal, esc, progressRing, starsHtml, setOutfit } from './ui.js';
 import { AVATARS, STICKERS, RARITY, PACK_COST, BADGES, OUTFITS, MISSIONS, MISSION_PRIZE } from './data.js';
 import { dotArray } from './visuals.js';
-import { playScreen } from './game.js';
+import { playScreen, BOSSES } from './game.js';
 import { balloonsScreen } from './balloons.js';
 
 const host = document.getElementById('app');
@@ -296,7 +296,8 @@ const SCREENS = {
     const front = frontier(state, op);
     const rowH = 150;
     const xs = list.map((_, i) => 50 + 26 * Math.sin(i * 1.15));
-    const H = list.length * rowH + 60;
+    const H = (list.length + 1) * rowH + 80;
+    const bossOpen = state.settings.unlockAll || list.filter((s) => { const st = skillState(state, s.id); return st.stars >= 2 || st.placed || st.crowned; }).length >= 2;
     const pts = list.map((_, i) => `${xs[i]},${i * rowH + 90}`).join(' ');
     root.innerHTML = `<div class="screen world theme-${op}" style="--c:${w.color};--cd:${w.dark};--cs:${w.soft}">
       ${topbar({ back: true, title: `${w.emoji} ${w.name}` })}
@@ -317,6 +318,10 @@ const SCREENS = {
             ${isFront ? `<div class="node-mascot">${mascot('happy', 80, 'bob')}</div>` : ''}
           </div>`;
         }).join('')}
+        <div class="node-wrap boss-wrap" style="left:50%;top:${list.length * rowH + 90}px">
+          <button class="node boss-node ${bossOpen ? 'open' : 'locked'}" data-boss="1">${bossOpen ? BOSSES[op][0] : '🔒'}</button>
+          <div class="node-label">⚔️ Jefe: ${esc(BOSSES[op][1])}${state.bosses?.[op] ? ' 🏆' : ''}</div>
+        </div>
       </div></div>`;
     bindTop(root);
     if (msg) { setTimeout(() => notify(msg, 'unlock'), 300); }
@@ -326,6 +331,14 @@ const SCREENS = {
       const n = e.target.closest('.node');
       if (!n) return;
       sfx('tap');
+      if (n.dataset.boss) {
+        if (!bossOpen) { toast('Pasá 2 niveles de este mundo para desafiar al jefe ⚔️'); return; }
+        const m = modal(`<div class="center"><div class="boss-big">${BOSSES[op][0]}</div><h2>${esc(BOSSES[op][1])}</h2>
+          <p>Tiene <b>10 vidas</b>. Cada respuesta bien le saca una. ¡Ganale antes de que se terminen las preguntas!</p>
+          <button class="btn btn-big btn-go js-fight">⚔️ ¡A la batalla!</button></div>`);
+        m.el.querySelector('.js-fight').addEventListener('click', () => app.play({ kind: 'boss', op }));
+        return;
+      }
       levelCard(n.dataset.id, n.dataset.next === '1');
     });
   },
@@ -390,6 +403,21 @@ const SCREENS = {
     if (record && score > 0) { setTimeout(() => { bigCelebration(); sfx('fanfare'); }, 300); say(`¡Nuevo récord! ${score}`); }
     root.querySelector('.js-again').addEventListener('click', () => app.play({ kind: 'speed', op }));
     root.querySelector('.js-home').addEventListener('click', () => app.go('home', {}, { push: false }));
+  },
+
+  bossResult({ op, won, first, earned, left }) {
+    const root = app.root;
+    const [emoji, name] = BOSSES[op];
+    root.innerHTML = `<div class="screen result theme-${op}"><div class="result-card">
+      <div class="boss-big ${won ? 'defeated' : ''}">${emoji}</div>
+      <h1>${won ? '¡Le ganaste!' : '¡Casi casi!'}</h1>
+      <p class="result-sub">${won ? `Venciste al <b>${esc(name)}</b>${first ? ' por primera vez 🏆' : ''}.` : `Al ${esc(name)} le quedaban ${left} vidas. ¡La próxima le ganás!`}</p>
+      <div class="result-stats"><div><b>+${earned}</b><span>⭐ ganadas</span></div></div>
+      <div class="row"><button class="btn btn-soft js-map">🗺️ Mapa</button><button class="btn btn-go js-again">⚔️ ${won ? 'Otra batalla' : 'Revancha'}</button></div>
+    </div></div>`;
+    if (won) { setTimeout(() => { bigCelebration(); sfx('fanfare'); }, 300); say(`¡Le ganaste al ${name}!`); }
+    root.querySelector('.js-again').addEventListener('click', () => app.play({ kind: 'boss', op }));
+    root.querySelector('.js-map').addEventListener('click', () => app.go('world', { op }, { push: false }));
   },
 
   placementResult({ result }) {

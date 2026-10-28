@@ -22,6 +22,7 @@ export function defaultState() {
     owned: {},
     outfit: {},
     lastChest: null,
+    bosses: {},
     createdAt: Date.now(),
   };
   initSkills(s);

@@ -49,6 +49,8 @@ export const BADGES = [
   { id: 'tables', emoji: '🧙‍♀️', name: 'Maga de las tablas', desc: 'Pasá todas las tablas', test: (s) => (s.skills.mul9?.stars || 0) >= 2 },
   { id: 'balloons10', emoji: '🎈', name: 'Revientaglobos', desc: '10 globos en un juego', test: (s) => (s.records.balloons || 0) >= 10 },
   { id: 'dress', emoji: '👗', name: 'A la moda', desc: 'Comprale algo a Numi', test: (s) => Object.keys(s.owned || {}).length >= 1 },
+  { id: 'boss1', emoji: '⚔️', name: 'Valiente', desc: 'Ganale a un jefe', test: (s) => Object.keys(s.bosses || {}).length >= 1 },
+  { id: 'boss4', emoji: '🛡️', name: 'Heroína', desc: 'Ganale a los 4 jefes', test: (s) => Object.keys(s.bosses || {}).length >= 4 },
   { id: 'stickers10', emoji: '📒', name: 'Coleccionista', desc: 'Juntá 10 stickers distintos', test: (s) => Object.keys(s.stickers).length >= 10 },
   { id: 'legend', emoji: '🌟', name: '¡Legendaria!', desc: 'Conseguí un sticker legendario', test: (s) => STICKERS.some((k) => k.rarity === 'legend' && s.stickers[k.id]) },
 ];

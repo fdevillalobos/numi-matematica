@@ -12,6 +12,8 @@ import { inkPad, segment, setPersonalTemplates } from './ink.js';
 
 const pickOne = (a) => a[Math.floor(Math.random() * a.length)];
 const SPEED_SECONDS = 60;
+const BOSS_HP = 10;
+export const BOSSES = { add: ['🦀', 'Cangrejo Sumador'], sub: ['🦉', 'Búho Restón'], mul: ['👾', 'Marciano Multiplicón'], div: ['🐉', 'Dragón Divisor'] };
 
 function skillForTable(n) {
   return SKILLS.find((s) => s.tables && s.tables.length <= 3 && s.tables.includes(n))?.id || 'mul9';
@@ -32,9 +34,10 @@ export function playScreen(app, session) {
     });
   } else if (kind === 'jump') queue = buildLesson(state, session.skill, 5).map((p) => makeProblem(p.skill, p.a, p.b, 'input'));
   else if (kind === 'placement') placement = new Placement(state);
+  else if (kind === 'boss') queue = Array.from({ length: BOSS_HP + 2 }, () => generate(state, speedSkill(state, session.op)));
 
   const mainCount = queue.length;
-  const op = kind === 'speed' ? session.op : kind === 'lesson' || kind === 'jump' ? SKILL[session.skill].op : kind === 'table' ? 'mul' : null;
+  const op = kind === 'speed' || kind === 'boss' ? session.op : kind === 'lesson' || kind === 'jump' ? SKILL[session.skill].op : kind === 'table' ? 'mul' : null;
   const world = WORLDS.find((w) => w.id === op);
 
   let idx = 0;
@@ -55,6 +58,7 @@ export function playScreen(app, session) {
   let speedEnd = 0;
   let speedTimer = null;
   let pad = null;
+  let bossHp = BOSS_HP;
   const pencilOn = state.settings.pencil !== false && kind !== 'speed' && kind !== 'placement';
   setPersonalTemplates(state.ink);
 
@@ -71,11 +75,12 @@ export function playScreen(app, session) {
       <section class="play-left">
         <div class="play-mascot">
           <div class="js-mascot">${mascot('happy', 130)}</div>
-          <div class="bubble js-bubble">${kind === 'placement' ? '¡Veamos cuánto sabés!' : kind === 'speed' ? '¡Lo más rápido que puedas!' : '¡Vamos!'}</div>
+          ${kind === 'boss' ? `<div class="boss"><span class="boss-emoji js-boss">${BOSSES[session.op][0]}</span><div class="boss-hp"><i class="js-hp" style="width:100%"></i></div><b>${BOSSES[session.op][1]}</b></div>` : ''}
+          <div class="bubble js-bubble">${kind === 'placement' ? '¡Veamos cuánto sabés!' : kind === 'speed' ? '¡Lo más rápido que puedas!' : kind === 'boss' ? '¡Cada respuesta bien le saca vida!' : '¡Vamos!'}</div>
         </div>
         <div class="problem-card js-card"><div class="problem js-problem"></div>
           <div class="play-tools">
-            ${kind !== 'speed' && kind !== 'placement' && kind !== 'jump' ? '<button class="tool js-hint">💡 Ayuda</button>' : ''}
+            ${kind !== 'speed' && kind !== 'placement' && kind !== 'jump' && kind !== 'boss' ? '<button class="tool js-hint">💡 Ayuda</button>' : ''}
             ${pencilOn ? '<button class="tool js-mode" aria-label="Cambiar forma de responder">✏️ Lápiz</button>' : ''}
             <button class="tool js-say" aria-label="Escuchar">🔊</button>
           </div>
@@ -93,6 +98,7 @@ export function playScreen(app, session) {
     if (kind === 'lesson' || kind === 'jump') return `${world.emoji} ${SKILL[session.skill].name}${kind === 'jump' ? ' · Prueba de salto' : ''}`;
     if (kind === 'smart') return '✨ Práctica mágica';
     if (kind === 'table') return `🔢 Tabla del ${session.table}`;
+    if (kind === 'boss') return `⚔️ ¡Batalla contra el ${BOSSES[session.op][1]}!`;
     if (kind === 'speed') return `⏱️ Carrera de ${world.short}`;
     return '🧭 Desafío inicial';
   }
@@ -287,6 +293,14 @@ export function playScreen(app, session) {
     if (kind !== 'speed' && combo % 5 === 0) say(text.replace(/[¡!]/g, ''));
     renderCombo();
     if (kind === 'placement') placement.answer(p, true, performance.now() - shownAt);
+    if (kind === 'boss') {
+      bossHp--;
+      const be = root.querySelector('.js-boss');
+      be.classList.remove('hit'); void be.offsetWidth; be.classList.add('hit');
+      root.querySelector('.js-hp').style.width = `${(bossHp / BOSS_HP) * 100}%`;
+      sfx('pop');
+      if (bossHp <= 0) { idx = queue.length; app.save(); setTimeout(finish, 900); return; }
+    }
     if (kind !== 'speed' && kind !== 'placement') idx++;
     app.save();
     setTimeout(next, kind === 'speed' ? 350 : 950);
@@ -322,8 +336,12 @@ export function playScreen(app, session) {
       return;
     }
     p._ok = false;
+    if (kind === 'boss') {
+      const be = root.querySelector('.js-boss');
+      be.classList.remove('laugh'); void be.offsetWidth; be.classList.add('laugh');
+    }
     // Revancha: vuelve al final de la lección (máximo 3)
-    if (!p._retry && retries < 3) {
+    if (kind !== 'boss' && !p._retry && retries < 3) {
       retries++;
       const again = makeProblem(p.skill, p.a, p.b, 'input');
       again._retry = true;
@@ -338,7 +356,7 @@ export function playScreen(app, session) {
     say(ex.speech);
     const m = modal(`<div class="explain">
         <div class="explain-head">${mascot('think', 90)}<h2>¡Veamos cómo se hace!</h2></div>
-        <p class="explain-you">Pusiste ${esc(value)}, pero era ${p.answer}. ¡Vas a ver que la próxima te sale!</p>
+        <p class="explain-you">${p.format === 'draw' ? `Numi leyó ${esc(value)}` : `Pusiste ${esc(value)}`}, pero era ${p.answer}. ¡Vas a ver que la próxima te sale!</p>
         ${ex.html}
         <button class="btn btn-big btn-go" data-close>¡Entendido! 👍</button>
       </div>`, { cls: 'modal-explain', dismissable: false, onClose: () => { idx++; next(); } });
@@ -382,6 +400,17 @@ export function playScreen(app, session) {
       state.placementDone = true;
       app.save();
       return app.go('placementResult', { result });
+    }
+    if (kind === 'boss') {
+      const won = bossHp <= 0;
+      state.bosses ||= {};
+      const first = won && !state.bosses[op];
+      if (won) { state.bosses[op] = (state.bosses[op] || 0) + 1; state.stars += first ? 30 : 10; earned += first ? 30 : 10; }
+      state.totals.lessons++;
+      app.track('lesson');
+      app.save();
+      app.checkBadges();
+      return app.go('bossResult', { op, won, first, earned, left: bossHp });
     }
     if (kind === 'speed') {
       const key = `speed_${op}`;
