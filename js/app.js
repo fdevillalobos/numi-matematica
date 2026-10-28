@@ -647,10 +647,10 @@ const SCREENS = {
     const root = app.root;
     const s = state.settings;
     const weak = Object.entries(state.facts)
-      .filter(([k, f]) => k.startsWith('m') && f.seen >= 2)
+      .filter(([k, f]) => k.startsWith('m') && f.seen >= 2 && f.correct < f.seen)
       .sort((a, b) => a[1].box - b[1].box || a[1].correct / a[1].seen - b[1].correct / b[1].seen)
       .slice(0, 8)
-      .map(([k, f]) => `<span class="chip">${k.slice(1).replace('x', ' × ')} <small>${Math.round((f.correct / f.seen) * 100)}%</small></span>`).join('') || '<span class="small">Todavía no hay datos.</span>';
+      .map(([k, f]) => `<span class="chip">${k.slice(1).replace('x', ' × ')} <small>${Math.round((f.correct / f.seen) * 100)}%</small></span>`).join('') || '<span class="small">¡Ninguna por ahora! 🎉</span>';
     const fronts = WORLDS.map((w) => `<li>${w.emoji} <b>${w.short}:</b> ${esc(frontier(state, w.id).name)} · dominio ${skillState(state, frontier(state, w.id).id).mastery}%</li>`).join('');
     root.innerHTML = `<div class="screen parents">
       ${topbar({ back: true, title: '⚙️ Para adultos' })}
