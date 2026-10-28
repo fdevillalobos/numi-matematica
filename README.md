@@ -19,7 +19,7 @@ It's a web app made to be installed on the iPad (PWA): it opens full screen from
 
 ## Installing it on the iPad
 
-1. Open the app's URL in **Safari** on the iPad.
+1. Open **https://fdevillalobos.github.io/numi-matematica/** in **Safari** on the iPad.
 2. Tap Share → **Add to Home Screen**.
 3. Open it from the Numi icon: it runs full screen.
 
