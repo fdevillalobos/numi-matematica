@@ -505,6 +505,11 @@ export function playScreen(app, session) {
         <div class="row"><button class="btn btn-go js-stay" data-close>Seguir jugando</button><button class="btn btn-soft js-leave">Salir</button></div></div>`)
         .el.querySelector('.js-leave').addEventListener('click', () => { document.querySelector('.modal-wrap')?.remove(); cleanup(); app.back(); });
     }
+    if (e.target.closest('.js-mascot') && !locked) {
+      sfx('pop');
+      setMascot('party', pickOne(['¡Jiji, me hacés cosquillas!', '¡Vos podés!', '¡Pensá tranquila!', '¡Sos mi matemática favorita!', '¡Vamos, Isabella!'.replace('Isabella', state.profile?.name || 'Isabella')]));
+      setTimeout(() => { if (!dead && !locked) setMascot('happy'); }, 1600);
+    }
     if (e.target.closest('.js-hint')) showHint();
     if (e.target.closest('.js-mode') && current && !locked && (current.format === 'input' || current.format === 'draw')) {
       sfx('pop');

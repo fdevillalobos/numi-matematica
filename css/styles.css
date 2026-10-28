@@ -694,3 +694,4 @@ p { margin: 0.4em 0; line-height: 1.4; }
 .story-ans .answer-box { font-size: 72px; }
 .story-pic { font-size: 40px; }
 .st-box { padding: 6px 10px; }
+.play-mascot .js-mascot { cursor: pointer; }
