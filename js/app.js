@@ -9,6 +9,7 @@ import { AVATARS, STICKERS, RARITY, PACK_COST, BADGES, OUTFITS, MISSIONS, MISSIO
 import { dotArray } from './visuals.js';
 import { playScreen, BOSSES } from './game.js';
 import { balloonsScreen } from './balloons.js';
+import { inkPad, setPersonalTemplates } from './ink.js';
 
 const host = document.getElementById('app');
 let state = load();
@@ -547,6 +548,49 @@ const SCREENS = {
     });
   },
 
+  teach() {
+    const root = app.root;
+    const order = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+    let i = 0;
+    const samples = [];
+    root.innerHTML = `<div class="screen teach">
+      ${topbar({ back: true, title: '✏️ Enseñale tu letra a Numi' })}
+      <div class="teach-wrap">
+        <div class="teach-left">${mascot('happy', 150, 'bob')}${bubble('Escribí este número bien grande, como lo hacés siempre:', 'bubble-left')}
+          <div class="teach-digit js-digit">0</div><div class="teach-dots js-dots"></div></div>
+        <div class="teach-right"><div class="ink"><div class="js-pad"></div>
+          <div class="ink-btns"><button class="key key-del js-clear">🧽</button><button class="key key-ok js-next">✓</button></div></div></div>
+      </div></div>`;
+    bindTop(root);
+    const pad = inkPad(root.querySelector('.js-pad'), { onChange: () => {} });
+    app.onLeave(() => pad.destroy());
+    const show = () => {
+      root.querySelector('.js-digit').textContent = order[i];
+      root.querySelector('.js-dots').innerHTML = order.map((_, k) => `<i class="${k < i ? 'on' : k === i ? 'now' : ''}"></i>`).join('');
+    };
+    show();
+    root.querySelector('.js-clear').addEventListener('click', () => { sfx('pop'); pad.clear(); });
+    root.querySelector('.js-next').addEventListener('click', () => {
+      const strokes = pad.strokes().filter((st) => st.length > 1);
+      if (!strokes.length) return;
+      samples.push({ digit: String(order[i]), strokes: strokes.map((st) => st.filter((_, k) => k % Math.ceil(st.length / 40) === 0).map((p) => ({ x: Math.round(p.x), y: Math.round(p.y) }))) });
+      sfx('correct');
+      confetti({ count: 20, x: innerWidth * 0.7, y: innerHeight * 0.5 });
+      i++;
+      pad.clear();
+      if (i < order.length) { show(); return; }
+      // guardar: reemplaza las muestras viejas
+      state.ink = samples.concat((state.ink || []).slice(-10));
+      setPersonalTemplates(state.ink);
+      save(state);
+      sfx('fanfare');
+      bigCelebration();
+      say('¡Gracias! Ahora conozco tu letra');
+      modal(`<div class="center">${mascot('party', 140)}<h2>¡Ya conozco tu letra!</h2><p>Ahora voy a leer mejor tus números. Cuanto más escribas, mejor te entiendo 💜</p>
+        <button class="btn btn-big btn-go" data-close>¡Genial!</button></div>`, { onClose: () => app.back() });
+    });
+  },
+
   progress() {
     const root = app.root;
     const days = [];
@@ -618,6 +662,7 @@ const SCREENS = {
       </section>
       <section class="panel"><h2>Progreso</h2>
         <div class="row wrap">
+          <button class="btn btn-soft js-teach">✏️ Enseñarle mi letra a Numi</button>
           <button class="btn btn-soft js-place">🧭 Repetir desafío inicial</button>
           <button class="btn btn-soft js-export">💾 Guardar copia</button>
           <button class="btn btn-soft js-import">📂 Cargar copia</button>
@@ -645,6 +690,7 @@ const SCREENS = {
     $('.js-all').addEventListener('change', (e) => { s.unlockAll = e.target.checked; apply(); });
     $('.js-name').addEventListener('change', (e) => { state.profile.name = e.target.value.trim() || state.profile.name; apply(); });
     $('.js-place').addEventListener('click', () => app.play({ kind: 'placement' }));
+    $('.js-teach').addEventListener('click', () => app.go('teach'));
     $('.js-export').addEventListener('click', () => {
       const blob = new Blob([exportJson(state)], { type: 'application/json' });
       const a = document.createElement('a');
