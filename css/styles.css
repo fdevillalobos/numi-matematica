@@ -682,3 +682,15 @@ p { margin: 0.4em 0; line-height: 1.4; }
 .teach-dots i.on { background: var(--green); }
 .teach-dots i.now { background: var(--purple); transform: scale(1.3); }
 @media (orientation: portrait) { .teach-wrap { grid-template-columns: 1fr; } .teach-digit { font-size: 160px; } }
+
+/* ---------- problemas con historia ---------- */
+.story { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.story-text { font-size: 30px; font-weight: 800; line-height: 1.3; margin: 0; max-width: 620px; }
+.story-pic { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; font-size: 30px; max-width: 640px; }
+.st-row { letter-spacing: 2px; word-break: break-all; }
+.st-row s { opacity: 0.3; text-decoration: none; filter: grayscale(1); }
+.st-box { background: var(--cs); border: 3px dashed var(--c); border-radius: 16px; padding: 4px 8px; }
+.story-pic b { font-size: 34px; color: var(--c); }
+.story-ans .answer-box { font-size: 72px; }
+.story-pic { font-size: 40px; }
+.st-box { padding: 6px 10px; }

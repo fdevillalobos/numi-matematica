@@ -132,9 +132,31 @@ export function playScreen(app, session) {
     $('.js-combo').innerHTML = combo >= 2 ? `<span class="combo-badge ${combo >= 5 ? 'hot' : ''}">🔥 ${combo}</span>` : '';
   }
 
+  // Problemas con historia y dibujitos (solo con números chicos).
+  const ITEMS = [['🍎', 'manzanas', 'f'], ['🍓', 'frutillas', 'f'], ['🧁', 'cupcakes', 'm'], ['🎈', 'globos', 'm'], ['🐟', 'pececitos', 'm'], ['🍪', 'galletitas', 'f'], ['🌸', 'flores', 'f'], ['⭐', 'estrellas', 'f']];
+  const FRIENDS = ['Numi', 'Sofi', 'Tomi', 'la abuela', 'Mati', 'Lola'];
+  function storyHtml(p, box) {
+    if (!p._story) {
+      const [emoji, word, g] = pickOne(ITEMS);
+      p._story = { emoji, word, g, who: pickOne([state.profile?.name || 'Isabella', ...FRIENDS]) };
+    }
+    const { emoji, word, who, g } = p._story;
+    const cuantas = g === 'f' ? 'Cuántas' : 'Cuántos';
+    const rep = (n, cls = '') => `<span class="st-row ${cls}">${emoji.repeat(n)}</span>`;
+    let text = '';
+    let pic = '';
+    if (p.op === 'add') { text = `${esc(who)} tiene ${p.a} ${word} y le regalan ${p.b} más. ¿${cuantas} tiene ahora?`; pic = rep(p.a) + '<b>+</b>' + rep(p.b); }
+    else if (p.op === 'sub') { text = `Había ${p.a} ${word} y ${esc(who)} se llevó ${p.b}. ¿${cuantas} quedan?`; pic = `<span class="st-row">${emoji.repeat(p.a - p.b)}<s>${emoji.repeat(p.b)}</s></span>`; }
+    else if (p.op === 'mul') { text = `Hay ${p.a} cajitas con ${p.b} ${word} cada una. ¿${cuantas} ${word} hay en total?`; pic = Array.from({ length: p.a }, () => `<span class="st-box">${emoji.repeat(p.b)}</span>`).join(''); }
+    else { text = `${esc(who)} reparte ${p.a} ${word} entre ${p.b} amigos, todos iguales. ¿${cuantas} le tocan a cada uno?`; pic = rep(p.a); }
+    p._storyText = text;
+    return `<div class="story"><p class="story-text">${text}</p><div class="story-pic">${pic}</div><div class="story-ans">${box}</div></div>`;
+  }
+
   function problemHtml(p) {
     const s = OPS[p.op].sym;
     const box = p.format === 'choice' ? '<span class="answer-box q">?</span>' : `<span class="answer-box js-answer ${input ? 'filled' : ''}">${input || '&nbsp;'}</span>`;
+    if (p.story) return storyHtml(p, box);
     const vertical = p.format !== 'missing' && (((p.op === 'add' || p.op === 'sub') && Math.min(p.a, p.b) >= 10) || (p.op === 'mul' && Math.max(p.a, p.b) >= 11));
     if (vertical) {
       const [top, bottom] = p.op === 'mul' ? [Math.max(p.a, p.b), Math.min(p.a, p.b)] : [p.a, p.b];
@@ -200,6 +222,11 @@ export function playScreen(app, session) {
       current._fmt = true;
       if (current.format === 'input' && Math.random() < 0.4) current.format = 'draw';
     }
+    if (current._storyChecked === undefined && kind !== 'speed' && kind !== 'placement' && kind !== 'boss') {
+      const small = current.format !== 'missing' && current.a <= 10 && current.b <= 10 && current.c <= 40 && current.c > 0;
+      current._storyChecked = true;
+      if (small && Math.random() < 0.18) current.story = true;
+    }
     $('.js-problem').innerHTML = problemHtml(current);
     fitProblem();
     card.classList.remove('good', 'bad', 'shake');
@@ -215,7 +242,7 @@ export function playScreen(app, session) {
   // Achica la letra si el problema no entra en la tarjeta.
   function fitProblem() {
     const inner = $('.js-problem').firstElementChild;
-    if (!inner) return;
+    if (!inner || inner.classList.contains('story')) return;
     inner.style.fontSize = '';
     const max = card.clientWidth - 50;
     let fs = parseFloat(getComputedStyle(inner).fontSize);
@@ -481,7 +508,7 @@ export function playScreen(app, session) {
       renderInput();
       updateModeBtn();
     }
-    if (e.target.closest('.js-say') && current) say(speakProblem(current));
+    if (e.target.closest('.js-say') && current) say(current.story ? current._storyText : speakProblem(current), { force: true });
   });
   const keyHandler = (e) => {
     if (document.querySelector('.modal-wrap')) {

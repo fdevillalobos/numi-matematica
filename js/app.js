@@ -500,12 +500,21 @@ const SCREENS = {
       </section>
       <section class="album">${STICKERS.map((s) => {
         const n = state.stickers[s.id] || 0;
-        return `<div class="sticker ${n ? 'have' : 'missing'} r-${s.rarity}" style="--rc:${RARITY[s.rarity].color}">
+        return `<div class="sticker ${n ? 'have' : 'missing'} r-${s.rarity}" data-id="${s.id}" style="--rc:${RARITY[s.rarity].color}">
           <span class="sticker-emoji">${n ? s.emoji : '?'}</span><span class="sticker-name">${n ? esc(s.name) : '???'}</span>${n > 1 ? `<span class="sticker-n">×${n}</span>` : ''}</div>`;
       }).join('')}</section></div>`;
     bindTop(root);
     root.querySelector('.js-open')?.addEventListener('click', openPack);
     root.querySelector('.js-pack').addEventListener('click', () => { if (state.stars >= PACK_COST) openPack(); });
+    root.querySelector('.album').addEventListener('click', (e) => {
+      const el = e.target.closest('.sticker.have');
+      if (!el) return;
+      const st = STICKERS.find((x) => x.id === el.dataset.id);
+      sfx('pop');
+      say(st.name);
+      modal(`<div class="reveal r-${st.rarity}" style="--rc:${RARITY[st.rarity].color}"><div class="rays"></div><div class="reveal-emoji">${st.emoji}</div>
+        <h2>${esc(st.name)}</h2><p class="rarity">${RARITY[st.rarity].name} · tenés ${state.stickers[st.id]}</p></div>`, { cls: 'modal-pack' });
+    });
   },
 
   shop() {
