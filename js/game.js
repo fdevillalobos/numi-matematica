@@ -301,7 +301,8 @@ export function playScreen(app, session) {
     correctCount++;
     if (!p._retry) { p._ok = true; firstTryCorrect++; }
     else p._ok = true;
-    const gain = (hinted ? 0 : 1) + (combo >= 5 ? 1 : 0);
+    // En la carrera hay muchas respuestas: 1 ⭐ cada 2, para que las estrellas sigan valiendo.
+    const gain = kind === 'speed' ? (correctCount % 2 === 0 ? 1 : 0) : (hinted ? 0 : 1) + (combo >= 5 ? 1 : 0);
     if (gain > 0 && kind !== 'placement') {
       earned += gain;
       state.stars += gain;
