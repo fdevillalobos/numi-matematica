@@ -1,9 +1,9 @@
 // Funciona sin internet: guarda todos los archivos de la app.
-const VERSION = 'numi-v2';
+const VERSION = 'numi-v3';
 const FILES = [
   './', './index.html', './manifest.webmanifest', './css/styles.css',
   './js/app.js', './js/engine.js', './js/store.js', './js/game.js', './js/visuals.js',
-  './js/ui.js', './js/fx.js', './js/sound.js', './js/data.js', './js/ink.js',
+  './js/ui.js', './js/fx.js', './js/sound.js', './js/data.js', './js/ink.js', './js/balloons.js',
   './icons/icon.svg', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png',
 ];
 

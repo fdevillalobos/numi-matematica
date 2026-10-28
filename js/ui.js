@@ -2,6 +2,18 @@ import { sfx } from './sound.js';
 
 export const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+// Lo que tiene puesto Numi (se compra con estrellas).
+let outfit = {};
+export function setOutfit(o) { outfit = o || {}; }
+const SLOT_POS = {
+  head: '<text x="100" y="46" font-size="66" text-anchor="middle">$</text>',
+  face: '<text x="100" y="122" font-size="78" text-anchor="middle">$</text>',
+  hand: '<text x="178" y="150" font-size="52" text-anchor="middle" class="m-held">$</text>',
+};
+function outfitSvg() {
+  return Object.entries(outfit).filter(([, e]) => e).map(([slot, e]) => SLOT_POS[slot]?.replace('$', e) || '').join('');
+}
+
 // Numi, la mascota.
 export function mascot(mood = 'happy', size = 160, extra = '') {
   const eyes = mood === 'party'
@@ -25,15 +37,15 @@ export function mascot(mood = 'happy', size = 160, extra = '') {
     <defs><linearGradient id="mg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#B794FF"/><stop offset="1" stop-color="#7C4DFF"/></linearGradient></defs>
     <ellipse cx="100" cy="196" rx="58" ry="9" fill="rgba(40,20,90,.15)"/>
     <g class="m-body">
-      <path d="M78 48 L62 14" class="m-ant"/><path d="M122 48 L138 14" class="m-ant"/>
+      ${outfit.head ? '' : `<path d="M78 48 L62 14" class="m-ant"/><path d="M122 48 L138 14" class="m-ant"/>
       <path d="M62 2 l3.5 7.5 8 1 -6 5.5 1.6 8 -7.1-4 -7.1 4 1.6-8 -6-5.5 8-1z" fill="#FFC93C" class="m-star"/>
-      <path d="M138 2 l3.5 7.5 8 1 -6 5.5 1.6 8 -7.1-4 -7.1 4 1.6-8 -6-5.5 8-1z" fill="#FFC93C" class="m-star"/>
+      <path d="M138 2 l3.5 7.5 8 1 -6 5.5 1.6 8 -7.1-4 -7.1 4 1.6-8 -6-5.5 8-1z" fill="#FFC93C" class="m-star"/>`}
       ${arms}
       <ellipse cx="100" cy="115" rx="76" ry="72" fill="url(#mg)"/>
       <ellipse cx="100" cy="150" rx="42" ry="28" fill="#fff" opacity=".22"/>
       <ellipse cx="52" cy="128" rx="11" ry="7" fill="#FF8FB8" opacity=".8"/>
       <ellipse cx="148" cy="128" rx="11" ry="7" fill="#FF8FB8" opacity=".8"/>
-      ${eyes}${mouth}
+      ${eyes}${mouth}${outfitSvg()}
     </g></svg>`;
 }
 

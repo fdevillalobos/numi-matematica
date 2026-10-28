@@ -268,7 +268,8 @@ export function smartSkill(state, focusOp) {
     const st = skillState(state, s.id);
     if (!st.unlocked) continue;
     const isFront = frontier(state, s.op).id === s.id;
-    let w = isFront ? 4 : st.mastery < 80 ? 1.5 : 0.4;
+    let w = isFront ? 4 : st.placed ? 0.2 : st.mastery < 80 ? 1.5 : 0.4;
+    if (s.op === 'mul') w *= 2; // ¡a Isabella le encanta multiplicar!
     if (focusOp && s.op === focusOp) w *= 3;
     cands.push({ s, w });
   }

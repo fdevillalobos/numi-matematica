@@ -19,6 +19,9 @@ export function defaultState() {
     totals: { problems: 0, correct: 0, lessons: 0, perfect: 0, bestCombo: 0, packs: 0 },
     placementDone: false,
     ink: [],
+    owned: {},
+    outfit: {},
+    lastChest: null,
     createdAt: Date.now(),
   };
   initSkills(s);

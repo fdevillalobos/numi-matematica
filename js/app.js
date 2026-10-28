@@ -4,14 +4,16 @@ import {
 import { load, save, reset, exportJson, importJson } from './store.js';
 import { sfx, say, unlock as unlockAudio, configure as configureSound, spanishVoices, currentVoice } from './sound.js';
 import { confetti, bigCelebration } from './fx.js';
-import { mascot, bubble, toast, modal, esc, progressRing, starsHtml } from './ui.js';
-import { AVATARS, STICKERS, RARITY, PACK_COST, BADGES } from './data.js';
+import { mascot, bubble, toast, modal, esc, progressRing, starsHtml, setOutfit } from './ui.js';
+import { AVATARS, STICKERS, RARITY, PACK_COST, BADGES, OUTFITS } from './data.js';
 import { dotArray } from './visuals.js';
 import { playScreen } from './game.js';
+import { balloonsScreen } from './balloons.js';
 
 const host = document.getElementById('app');
 let state = load();
 configureSound(state.settings);
+setOutfit(state.outfit);
 
 const leaveFns = [];
 const history = [];
@@ -206,10 +208,11 @@ const SCREENS = {
     root.innerHTML = `<div class="screen home">
       ${topbar()}
       <section class="hero">
-        <div class="hero-mascot">${mascot('happy', 190, 'bob')}</div>
+        <button class="hero-mascot js-numi" aria-label="Vestir a Numi">${mascot('happy', 190, 'bob')}<span class="numi-tag">👗 Vestime</span></button>
         <div class="hero-right">
           ${bubble(greet, 'bubble-left big')}
-          <button class="btn btn-magic js-smart"><span class="sparkle">✨</span> Práctica mágica<small>Numi elige lo justo para vos</small></button>
+          <div class="hero-btns"><button class="btn btn-magic js-smart"><span class="sparkle">✨</span> Práctica mágica<small>Numi elige lo justo para vos</small></button>
+          ${state.lastChest !== todayKey() ? '<button class="chest js-chest" aria-label="Cofre del día"><span>🎁</span><b>¡Cofre del día!</b></button>' : ''}</div>
         </div>
       </section>
       <section class="worlds">
@@ -228,6 +231,7 @@ const SCREENS = {
         <button class="tile t-speed js-speed"><span>⏱️</span>Carrera</button>
         <button class="tile t-tables js-tables"><span>🔢</span>Mis tablas</button>
         <button class="tile t-stickers js-stickers"><span>📒</span>Stickers</button>
+        <button class="tile t-balloons js-balloons"><span>🎈</span>Globos</button>
         <button class="tile t-progress js-progress"><span>🏅</span>Mis avances</button>
       </section>
     </div>`;
@@ -241,6 +245,9 @@ const SCREENS = {
     root.querySelector('.js-tables').addEventListener('click', () => { sfx('tap'); app.go('tables'); });
     root.querySelector('.js-stickers').addEventListener('click', () => { sfx('tap'); app.go('stickers'); });
     root.querySelector('.js-progress').addEventListener('click', () => { sfx('tap'); app.go('progress'); });
+    root.querySelector('.js-balloons').addEventListener('click', () => { unlockAudio(); sfx('tap'); app.go('balloons'); });
+    root.querySelector('.js-numi').addEventListener('click', () => { unlockAudio(); sfx('pop'); app.go('shop'); });
+    root.querySelector('.js-chest')?.addEventListener('click', () => { unlockAudio(); openChest(); });
   },
 
   world({ op, msg, highlight }) {
@@ -285,6 +292,8 @@ const SCREENS = {
   },
 
   play(session) { playScreen(app, session); },
+
+  balloons() { balloonsScreen(app); },
 
   result(r) {
     const root = app.root;
@@ -431,6 +440,46 @@ const SCREENS = {
     root.querySelector('.js-pack').addEventListener('click', () => { if (state.stars >= PACK_COST) openPack(); });
   },
 
+  shop() {
+    const root = app.root;
+    const slots = { head: '🎩 Cabeza', face: '👓 Cara', hand: '✋ Mano' };
+    root.innerHTML = `<div class="screen shop">
+      ${topbar({ back: true, title: '👗 Vestí a Numi' })}
+      <div class="shop-wrap">
+        <div class="shop-numi">${mascot('happy', 300, 'bob')}<p class="small">Tocá algo para probártelo. ¡Lo que compres es tuyo para siempre!</p></div>
+        <div class="shop-items">${Object.entries(slots).map(([slot, label]) => `<h3>${label}</h3><div class="shop-grid">
+          ${OUTFITS.filter((o) => o.slot === slot).map((o) => {
+            const own = state.owned[o.id];
+            const worn = state.outfit[slot] === o.emoji;
+            return `<button class="shop-item ${own ? 'own' : ''} ${worn ? 'worn' : ''}" data-id="${o.id}"><span>${o.emoji}</span><b>${esc(o.name)}</b>
+              <small>${worn ? '✔︎ Puesto' : own ? 'Ponerme' : `${o.cost} ⭐`}</small></button>`;
+          }).join('')}</div>`).join('')}</div>
+      </div></div>`;
+    bindTop(root);
+    root.querySelector('.shop-items').addEventListener('click', (e) => {
+      const b = e.target.closest('.shop-item');
+      if (!b) return;
+      const o = OUTFITS.find((x) => x.id === b.dataset.id);
+      if (state.owned[o.id]) {
+        state.outfit[o.slot] = state.outfit[o.slot] === o.emoji ? null : o.emoji;
+        sfx('pop');
+      } else if (state.stars >= o.cost) {
+        state.stars -= o.cost;
+        state.owned[o.id] = Date.now();
+        state.outfit[o.slot] = o.emoji;
+        sfx('coin');
+        confetti({ count: 60 });
+        say(`¡${o.name}!`);
+      } else {
+        toast(`Te faltan ${o.cost - state.stars} ⭐ para ${esc(o.name)}. ¡A practicar!`);
+        return;
+      }
+      setOutfit(state.outfit);
+      save(state);
+      app.go('shop', {}, { push: false });
+    });
+  },
+
   progress() {
     const root = app.root;
     const days = [];
@@ -575,6 +624,21 @@ function levelCard(id, isNextLocked) {
     <div class="lc-head"><span>${w.emoji}</span><h2>${esc(s.name)}</h2></div>${body}</div>`);
   m.el.querySelector('.js-play')?.addEventListener('click', () => app.play({ kind: 'lesson', skill: id }));
   m.el.querySelector('.js-jump')?.addEventListener('click', () => app.play({ kind: 'jump', skill: id }));
+}
+
+function openChest() {
+  if (state.lastChest === todayKey()) return;
+  const prize = 5 + Math.floor(Math.random() * 11) + Math.min(10, state.streak.current * 2);
+  state.lastChest = todayKey();
+  state.stars += prize;
+  save(state);
+  sfx('whoosh');
+  const m = modal(`<div class="pack-open"><div class="pack-big shaking">🎁</div>
+    <div class="reveal r-legend" style="--rc:#FFC93C" hidden><div class="rays"></div><div class="reveal-emoji">⭐</div>
+    <h2>¡+${prize} estrellas!</h2><p class="rarity">${state.streak.current > 1 ? `Bonus por ${state.streak.current} días seguidos 🔥` : '¡Volvé mañana por otro cofre!'}</p>
+    <button class="btn btn-big btn-go" data-close>¡Gracias!</button></div></div>`,
+  { cls: 'modal-pack', dismissable: false, onClose: () => app.go('home', {}, { push: false }) });
+  setTimeout(() => { m.el.querySelector('.pack-big').remove(); m.el.querySelector('.reveal').hidden = false; sfx('fanfare'); bigCelebration(); }, 1300);
 }
 
 function speedPicker() {

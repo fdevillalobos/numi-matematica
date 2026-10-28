@@ -47,6 +47,26 @@ export const BADGES = [
   { id: 'speed30', emoji: '🌪️', name: 'Tornado', desc: '30 en una carrera', test: (s) => Object.values(s.records).some((r) => r >= 30) },
   { id: 'mulstart', emoji: '✖️', name: 'A multiplicar', desc: 'Pasá la tabla del 5', test: (s) => (s.skills.mul2?.stars || 0) >= 2 },
   { id: 'tables', emoji: '🧙‍♀️', name: 'Maga de las tablas', desc: 'Pasá todas las tablas', test: (s) => (s.skills.mul9?.stars || 0) >= 2 },
+  { id: 'balloons10', emoji: '🎈', name: 'Revientaglobos', desc: '10 globos en un juego', test: (s) => (s.records.balloons || 0) >= 10 },
+  { id: 'dress', emoji: '👗', name: 'A la moda', desc: 'Comprale algo a Numi', test: (s) => Object.keys(s.owned || {}).length >= 1 },
   { id: 'stickers10', emoji: '📒', name: 'Coleccionista', desc: 'Juntá 10 stickers distintos', test: (s) => Object.keys(s.stickers).length >= 10 },
   { id: 'legend', emoji: '🌟', name: '¡Legendaria!', desc: 'Conseguí un sticker legendario', test: (s) => STICKERS.some((k) => k.rarity === 'legend' && s.stickers[k.id]) },
+];
+
+// Tienda de Numi: cosas para ponerle, se pagan con estrellas.
+export const OUTFITS = [
+  { id: 'o_bow', slot: 'head', emoji: '🎀', name: 'Moño', cost: 20 },
+  { id: 'o_flower', slot: 'head', emoji: '🌸', name: 'Flor', cost: 20 },
+  { id: 'o_cap', slot: 'head', emoji: '🧢', name: 'Gorra', cost: 30 },
+  { id: 'o_grad', slot: 'head', emoji: '🎓', name: 'Birrete', cost: 45 },
+  { id: 'o_tophat', slot: 'head', emoji: '🎩', name: 'Galera', cost: 50 },
+  { id: 'o_crown', slot: 'head', emoji: '👑', name: 'Corona', cost: 80 },
+  { id: 'o_glasses', slot: 'face', emoji: '👓', name: 'Anteojos', cost: 25 },
+  { id: 'o_sun', slot: 'face', emoji: '🕶️', name: 'Lentes de sol', cost: 40 },
+  { id: 'o_balloon', slot: 'hand', emoji: '🎈', name: 'Globo', cost: 15 },
+  { id: 'o_lolly', slot: 'hand', emoji: '🍭', name: 'Chupetín', cost: 20 },
+  { id: 'o_wand', slot: 'hand', emoji: '🪄', name: 'Varita mágica', cost: 60 },
+  { id: 'o_star', slot: 'hand', emoji: '⭐', name: 'Estrella', cost: 35 },
+  { id: 'o_icecream', slot: 'hand', emoji: '🍦', name: 'Helado', cost: 25 },
+  { id: 'o_heart', slot: 'hand', emoji: '💖', name: 'Corazón', cost: 30 },
 ];
