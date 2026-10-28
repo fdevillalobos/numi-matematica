@@ -4,9 +4,10 @@ let enabled = true;
 let voiceOn = true;
 let voice = null;
 
-export function configure({ sound, voice: v }) {
+export function configure({ sound, voice: v, voiceURI }) {
   enabled = sound;
   voiceOn = v;
+  if (voiceURI !== undefined) setVoice(voiceURI);
 }
 
 function ac() {
@@ -59,24 +60,54 @@ export function sfx(name) {
   try { SFX[name]?.(); } catch (e) { /* sin audio */ }
 }
 
-function pickVoice() {
-  if (!('speechSynthesis' in window)) return;
-  const vs = speechSynthesis.getVoices();
-  voice = vs.find((v) => v.lang === 'es-AR') || vs.find((v) => v.lang === 'es-MX') || vs.find((v) => v.lang === 'es-US') || vs.find((v) => v.lang?.startsWith('es')) || null;
-}
-if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-  speechSynthesis.onvoiceschanged = pickVoice;
+// Voces femeninas en español, de mejor a peor. En iPad se pueden bajar versiones
+// "Mejorada"/"Premium" en Ajustes > Accesibilidad > Contenido leído > Voces.
+const GOOD = ['paulina', 'mónica', 'monica', 'marisol', 'angélica', 'angelica', 'soledad', 'francisca', 'isabela', 'paloma', 'esperanza', 'lucía', 'lucia', 'elvira', 'dalia', 'helena', 'sabina', 'google español'];
+const BAD = ['eddy', 'flo', 'grandma', 'grandpa', 'reed', 'rocko', 'sandy', 'shelley', 'diego', 'jorge', 'juan', 'carlos', 'pablo', 'enrique', 'albert', 'bad news', 'bahh', 'bells', 'boing', 'bubbles', 'cellos', 'good news', 'jester', 'organ', 'superstar', 'trinoids', 'whisper', 'wobble', 'zarvox', 'junior', 'ralph', 'fred', 'kathy'];
+let preferred = '';
+
+export function spanishVoices() {
+  if (!('speechSynthesis' in window)) return [];
+  return speechSynthesis.getVoices().filter((v) => v.lang?.toLowerCase().startsWith('es'));
 }
 
-export function say(text) {
-  if (!voiceOn || !('speechSynthesis' in window)) return;
+function score(v) {
+  const n = v.name.toLowerCase();
+  if (BAD.some((b) => n.includes(b))) return -100;
+  let s = 0;
+  const i = GOOD.findIndex((g) => n.includes(g));
+  if (i >= 0) s += 50 - i;
+  if (/premium|mejorad|enhanced|neural|natural/.test(n)) s += 40;
+  if (/es-(mx|us|419|ar)/i.test(v.lang)) s += 5;
+  if (v.localService) s += 2;
+  return s;
+}
+
+function pickVoice() {
+  const vs = spanishVoices();
+  if (!vs.length) return;
+  voice = (preferred && vs.find((v) => v.voiceURI === preferred)) || vs.slice().sort((a, b) => score(b) - score(a))[0];
+  if (!preferred && score(voice) < 0) voice = null; // mejor callar que una voz fea
+}
+
+export function setVoice(uri) { preferred = uri || ''; pickVoice(); }
+export function currentVoice() { return voice; }
+
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  speechSynthesis.onvoiceschanged = pickVoice;
+  pickVoice();
+}
+
+export function say(text, { force = false } = {}) {
+  if ((!voiceOn && !force) || !('speechSynthesis' in window) || !voice) return;
   try {
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = voice?.lang || 'es-ES';
-    if (voice) u.voice = voice;
-    u.rate = 1.0;
-    u.pitch = 1.15;
+    u.voice = voice;
+    u.lang = voice.lang;
+    u.rate = 0.95;
+    u.pitch = 1.05;
+    u.volume = 0.9;
     speechSynthesis.speak(u);
   } catch (e) { /* sin voz */ }
 }

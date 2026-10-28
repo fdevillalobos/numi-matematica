@@ -8,6 +8,7 @@ import { sfx, say } from './sound.js';
 import { confetti, flyStar } from './fx.js';
 import { mascot, modal, esc } from './ui.js';
 import { PRAISE, COMBO_PRAISE, OOPS } from './data.js';
+import { inkPad, segment, setPersonalTemplates } from './ink.js';
 
 const pickOne = (a) => a[Math.floor(Math.random() * a.length)];
 const SPEED_SECONDS = 60;
@@ -53,6 +54,9 @@ export function playScreen(app, session) {
   const events = [];
   let speedEnd = 0;
   let speedTimer = null;
+  let pad = null;
+  const pencilOn = state.settings.pencil !== false && kind !== 'speed' && kind !== 'placement';
+  setPersonalTemplates(state.ink);
 
   const root = app.root;
   root.innerHTML = `
@@ -124,9 +128,10 @@ export function playScreen(app, session) {
   function problemHtml(p) {
     const s = OPS[p.op].sym;
     const box = p.format === 'choice' ? '<span class="answer-box q">?</span>' : `<span class="answer-box js-answer ${input ? 'filled' : ''}">${input || '&nbsp;'}</span>`;
-    const vertical = (p.op === 'add' || p.op === 'sub') && p.format !== 'missing' && Math.min(p.a, p.b) >= 10;
+    const vertical = p.format !== 'missing' && (((p.op === 'add' || p.op === 'sub') && Math.min(p.a, p.b) >= 10) || (p.op === 'mul' && Math.max(p.a, p.b) >= 11));
     if (vertical) {
-      return `<div class="vertical"><span>${p.a}</span><span><i>${s}</i>${p.b}</span><hr>${box}</div>`;
+      const [top, bottom] = p.op === 'mul' ? [Math.max(p.a, p.b), Math.min(p.a, p.b)] : [p.a, p.b];
+      return `<div class="vertical"><span>${top}</span><span><i>${s}</i>${bottom}</span><hr>${box}</div>`;
     }
     const len = String(p.a).length + String(p.b).length + String(p.c).length;
     const size = len > 7 ? 'sm' : len > 5 ? 'md' : 'lg';
@@ -136,6 +141,19 @@ export function playScreen(app, session) {
 
   function renderInput() {
     const el = $('.js-input');
+    pad?.destroy();
+    pad = null;
+    if (current.format === 'draw') {
+      el.innerHTML = `<div class="ink"><div class="js-pad"></div>
+        <div class="ink-btns"><button class="key key-del js-ink-clear" aria-label="Borrar">🧽</button><button class="key key-ok js-ink-ok" aria-label="Listo">✓</button></div></div>`;
+      pad = inkPad(el.querySelector('.js-pad'), { onChange: (t) => { input = t.slice(0, 4); updateAnswer(); } });
+      el.querySelector('.js-ink-clear').addEventListener('click', () => { sfx('pop'); pad.clear(); });
+      el.querySelector('.js-ink-ok').addEventListener('click', () => {
+        if (input) check(input);
+        else { const pd = el.querySelector('.ink-pad'); pd.classList.remove('shake'); void pd.offsetWidth; pd.classList.add('shake'); }
+      });
+      return;
+    }
     if (current.format === 'choice') {
       el.innerHTML = `<div class="choices">${current.choices.map((v, i) => `<button class="choice c${i}" data-v="${v}" style="--d:${i * 70}ms">${v}</button>`).join('')}</div>`;
     } else {
@@ -147,7 +165,7 @@ export function playScreen(app, session) {
 
   function updateAnswer() {
     const a = root.querySelector('.js-answer');
-    if (a) { a.innerHTML = input || '&nbsp;'; a.classList.toggle('filled', !!input); }
+    if (a) { a.innerHTML = input || '&nbsp;'; a.classList.toggle('filled', !!input); fitProblem(); }
   }
 
   function next() {
@@ -164,7 +182,12 @@ export function playScreen(app, session) {
       if (idx >= queue.length) return finish();
       current = queue[idx];
     }
+    if (pencilOn && !current._fmt) {
+      current._fmt = true;
+      if (current.format === 'input' && Math.random() < 0.4) current.format = 'draw';
+    }
     $('.js-problem').innerHTML = problemHtml(current);
+    fitProblem();
     card.classList.remove('good', 'bad', 'shake');
     card.classList.remove('enter');
     void card.offsetWidth;
@@ -172,6 +195,19 @@ export function playScreen(app, session) {
     renderInput();
     renderProgress();
     shownAt = performance.now();
+  }
+
+  // Achica la letra si el problema no entra en la tarjeta.
+  function fitProblem() {
+    const inner = $('.js-problem').firstElementChild;
+    if (!inner) return;
+    inner.style.fontSize = '';
+    const max = card.clientWidth - 50;
+    let fs = parseFloat(getComputedStyle(inner).fontSize);
+    while (inner.scrollWidth > max && fs > 40) {
+      fs -= 6;
+      inner.style.fontSize = `${fs}px`;
+    }
   }
 
   function praise() {
@@ -196,7 +232,24 @@ export function playScreen(app, session) {
     if (ok) onCorrect(p, ms); else onWrong(p, value);
   }
 
+  // Guarda su letra: cada cifra confirmada como correcta queda como plantilla propia.
+  function learnInk(p) {
+    if (p.format !== 'draw' || !pad) return;
+    const groups = segment(pad.strokes());
+    const digits = String(p.answer);
+    if (groups.length !== digits.length) return;
+    state.ink ||= [];
+    groups.forEach((g, i) => {
+      const strokes = g.strokes.map((st) => st.filter((_, k) => k % Math.ceil(st.length / 40 || 1) === 0).map((pt) => ({ x: Math.round(pt.x), y: Math.round(pt.y) })));
+      state.ink.push({ digit: digits[i], strokes });
+      const mine = state.ink.filter((t) => t.digit === digits[i]);
+      if (mine.length > 4) state.ink.splice(state.ink.indexOf(mine[0]), 1);
+    });
+    setPersonalTemplates(state.ink);
+  }
+
   function onCorrect(p) {
+    learnInk(p);
     combo++;
     bestCombo = Math.max(bestCombo, combo);
     correctCount++;
@@ -220,7 +273,7 @@ export function playScreen(app, session) {
     confetti({ x: r.left + r.width / 2, y: r.top + r.height / 2, count: combo >= 5 ? 50 : 26, spread: 0.7 });
     const text = praise();
     setMascot('party', text);
-    if (kind !== 'speed' && (combo % 3 === 0 || Math.random() < 0.35)) say(text.replace(/[¡!]/g, ''));
+    if (kind !== 'speed' && combo % 5 === 0) say(text.replace(/[¡!]/g, ''));
     renderCombo();
     if (kind === 'placement') placement.answer(p, true, performance.now() - shownAt);
     if (kind !== 'speed' && kind !== 'placement') idx++;
@@ -363,7 +416,7 @@ export function playScreen(app, session) {
   }
 
   root.addEventListener('pointerdown', (e) => {
-    const key = e.target.closest('.key');
+    const key = e.target.closest('.key[data-k]');
     if (key) { e.preventDefault(); key.classList.add('down'); setTimeout(() => key.classList.remove('down'), 120); onKey(key.dataset.k); return; }
     const ch = e.target.closest('.choice');
     if (ch && !locked) { e.preventDefault(); check(ch.dataset.v); }
@@ -391,7 +444,10 @@ export function playScreen(app, session) {
   };
   document.addEventListener('keydown', keyHandler);
 
+  addEventListener('resize', fitProblem);
   function cleanup() {
+    removeEventListener('resize', fitProblem);
+    pad?.destroy();
     document.removeEventListener('keydown', keyHandler);
     clearInterval(speedTimer);
   }

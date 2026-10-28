@@ -562,3 +562,23 @@ p { margin: 0.4em 0; line-height: 1.4; }
   .play .choices { max-width: 580px; }
 }
 .explain-you { font-size: 22px; font-weight: 800; color: var(--red); margin: 0; }
+.chart { max-height: 260px; }
+.horizontal { width: max-content; max-width: none; margin: 0 auto; }
+.voice-pick { display: flex; gap: 10px; align-items: center; }
+.voice-pick select { max-width: 360px; }
+.btn-sm { font-size: 18px; padding: 8px 16px; border-radius: 14px; box-shadow: 0 4px 0 #D9D0F5; }
+
+/* ---------- Apple Pencil ---------- */
+.ink { display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 560px; margin: 0 auto; }
+.ink-pad {
+  position: relative; height: 380px; border-radius: 34px; background: #fff;
+  background-image: linear-gradient(transparent 62%, var(--cs) 62%, var(--cs) calc(62% + 4px), transparent calc(62% + 4px));
+  box-shadow: 0 10px 0 #E0D7F7, 0 16px 30px rgba(43, 33, 80, 0.12); border: 5px dashed var(--c); overflow: hidden;
+}
+.ink-pad canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+.ink-hint { position: absolute; inset: 0; display: grid; place-items: center; font-size: 30px; font-weight: 800; color: var(--c); opacity: 0.55; pointer-events: none; transition: opacity 0.2s; }
+.ink-pad.used .ink-hint { opacity: 0; }
+.ink-pad.shake { animation: shake 0.5s; }
+.ink-btns { display: grid; grid-template-columns: 1fr 2fr; gap: 16px; }
+.ink-btns .key { aspect-ratio: auto; height: 110px; }
+@media (orientation: portrait) { .ink-pad { height: 360px; } .ink { max-width: 760px; } }

@@ -115,6 +115,44 @@ function columnView(a, b, op, { showResult = true } = {}) {
   return { html, steps };
 }
 
+// Multiplicación en columna: número grande arriba, una cifra abajo.
+function columnMul(big, small, { showResult = true } = {}) {
+  const A = String(big).split('').reverse().map(Number);
+  const names = ['unidades', 'decenas', 'centenas', 'miles'];
+  const res = [];
+  const marks = [];
+  const steps = [];
+  let carry = 0;
+  A.forEach((d, i) => {
+    const prod = d * small;
+    const tot = prod + carry;
+    let txt = `${d} × ${small} = ${prod}`;
+    if (carry) txt += `, más ${carry} que me llevé = ${tot}`;
+    if (carry) marks[i] = String(carry);
+    res[i] = tot % 10;
+    carry = Math.floor(tot / 10);
+    const last = i === A.length - 1;
+    if (!last && carry) txt += ` → escribo ${tot % 10} y me llevo ${carry}`;
+    if (last && carry) txt += ` → escribo ${tot}`;
+    steps.push(`<b>${cap(names[i])}:</b> ${txt}`);
+  });
+  if (carry) String(carry).split('').reverse().forEach((c, k) => { res[A.length + k] = Number(c); });
+  const n = res.length;
+  const cols = n + 1;
+  const cell = (v, cls = '') => `<span class="col-cell ${cls}">${v ?? ''}</span>`;
+  let html = `<div class="column" style="--cols:${cols}">`;
+  html += cell('');
+  for (let i = n - 1; i >= 0; i--) html += cell(showResult ? marks[i] : '', 'col-mark');
+  html += cell('');
+  for (let i = n - 1; i >= 0; i--) html += cell(A[i]);
+  html += cell('×', 'col-op');
+  for (let i = n - 1; i >= 0; i--) html += cell(i === 0 ? small : '');
+  html += `<span class="col-line" style="grid-column: 1 / span ${cols}"></span>`;
+  html += cell('');
+  for (let i = n - 1; i >= 0; i--) html += cell(showResult ? res[i] : '', 'col-res');
+  return { html: html + '</div>', steps };
+}
+
 const TABLE_TIPS = {
   1: 'Cualquier número por 1 da el mismo número.',
   2: 'Por 2 es el doble: sumás el número dos veces.',
@@ -134,6 +172,9 @@ function mulTip(a, b) {
   if (t === 2) { const n = a === 2 ? b : a; return `Por 2 es el doble: ${n} + ${n} = ${2 * n}.`; }
   return TABLE_TIPS[t] || 'Podés dar vuelta la cuenta: el resultado es el mismo.';
 }
+
+const toSpeech = (t) => t.replace(/<[^>]+>/g, '').replace(/−/g, ' menos ').replace(/×/g, ' por ').replace(/÷/g, ' dividido ')
+  .replace(/\+/g, ' más ').replace(/=/g, ' es ').replace(/→/g, ', ').replace(/✔︎/g, '');
 
 const isSmall = (p) => p.a <= 20 && p.b <= 20 && p.c <= 20;
 
@@ -180,13 +221,9 @@ export function explain(p) {
       const small = Math.min(a, b);
       const t = Math.floor(big / 10) * 10;
       const u = big % 10;
-      visual = `<div class="split">
-        <div class="split-part"><b>${t} × ${small}</b><span>= ${t * small}</span></div>
-        <div class="split-plus">+</div>
-        <div class="split-part"><b>${u} × ${small}</b><span>= ${u * small}</span></div>
-        <div class="split-plus">=</div>
-        <div class="split-part total"><b>${c}</b></div></div>`;
-      text.push(`Separá ${big} en ${t} + ${u}. Multiplicá cada parte por ${small} y sumá: ${t * small} + ${u * small} = ${c}.`);
+      const col = columnMul(big, small);
+      visual = col.html;
+      text = col.steps.concat([`Otra forma: ${t} × ${small} = ${t * small}, ${u} × ${small} = ${u * small}, y ${t * small} + ${u * small} = ${c}.`]);
     }
   } else if (p.op === 'div') {
     visual = groupsView(a, b);
@@ -200,7 +237,7 @@ export function explain(p) {
   return {
     html: `<div class="explain-q">${questionLine(p, true)}</div><div class="explain-visual">${visual}</div>
       <ul class="explain-steps">${text.map((t) => `<li>${t}</li>`).join('')}</ul>`,
-    speech: `La respuesta es ${p.answer}. ${text[0]?.replace(/<[^>]+>/g, '').replace(/−/g, 'menos').replace(/×/g, 'por').replace(/÷/g, 'dividido') || ''}`,
+    speech: `La respuesta es ${p.answer}. ${toSpeech(text[0] || '')}`,
   };
 }
 
@@ -225,7 +262,7 @@ export function hint(p) {
     else { visual = columnView(a, b, 'sub', { showResult: false }).html; text ||= 'Empezá por las unidades. Si arriba hay menos, pedí 1 prestado.'; }
   } else if (p.op === 'mul') {
     if (a <= 10 && b <= 10) { visual = dotArray(a, b, { showAll: false }); text ||= `Contá de ${b} en ${b}, ${a} veces. ${mulTip(a, b)}`; }
-    else { const big = Math.max(a, b), small = Math.min(a, b); text ||= `Separá ${big} en ${Math.floor(big / 10) * 10} + ${big % 10} y multiplicá cada parte por ${small}.`; }
+    else { const big = Math.max(a, b), small = Math.min(a, b); visual = columnMul(big, small, { showResult: false }).html; text ||= `Empezá por las unidades: ${big % 10} × ${small}. Si te da más de 9, escribí las unidades y llevate las decenas.`; }
   } else if (p.op === 'div') {
     text ||= `Pensá: ¿qué número por ${b} da ${a}? Contá de ${b} en ${b} hasta llegar a ${a}.`;
     visual = `<div class="skip">${range(Math.min(10, c + 2)).map((i) => `<span>${(i + 1) * b}</span>`).join('')}</div>`;

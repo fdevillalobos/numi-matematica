@@ -6,7 +6,7 @@ export function defaultState() {
   const s = {
     version: 1,
     profile: null, // { name, avatar }
-    settings: { sound: true, voice: true, dailyGoal: 20, unlockAll: false },
+    settings: { sound: true, voice: true, voiceURI: '', dailyGoal: 20, unlockAll: false, pencil: true },
     stars: 0,
     xp: 0,
     skills: {},
@@ -18,6 +18,7 @@ export function defaultState() {
     records: {},
     totals: { problems: 0, correct: 0, lessons: 0, perfect: 0, bestCombo: 0, packs: 0 },
     placementDone: false,
+    ink: [],
     createdAt: Date.now(),
   };
   initSkills(s);
@@ -38,7 +39,11 @@ function merge(base, saved) {
 export function load() {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return merge(defaultState(), JSON.parse(raw));
+    if (raw) {
+      const s = merge(defaultState(), JSON.parse(raw));
+      if (s.profile?.name === 'Isabela') s.profile.name = 'Isabella';
+      return s;
+    }
   } catch (e) {
     console.warn('No se pudo leer el progreso', e);
   }

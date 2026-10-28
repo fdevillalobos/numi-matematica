@@ -2,7 +2,7 @@ import {
   WORLDS, SKILL, SKILLS, skillsOf, skillState, frontier, levelFromXp, todayKey, speedOf, isWorldComplete,
 } from './engine.js';
 import { load, save, reset, exportJson, importJson } from './store.js';
-import { sfx, say, unlock as unlockAudio, configure as configureSound } from './sound.js';
+import { sfx, say, unlock as unlockAudio, configure as configureSound, spanishVoices, currentVoice } from './sound.js';
 import { confetti, bigCelebration } from './fx.js';
 import { mascot, bubble, toast, modal, esc, progressRing, starsHtml } from './ui.js';
 import { AVATARS, STICKERS, RARITY, PACK_COST, BADGES } from './data.js';
@@ -99,6 +99,7 @@ function levelUp(level) {
   sfx('levelup');
   bigCelebration();
   say(`¡Subiste al nivel ${level}!`);
+  if (currentScreen?.name === 'play') { notify(`🎉 ¡Subiste al <b>nivel ${level}</b>!`, 'crown'); return; }
   modal(`<div class="center levelup">${mascot('party', 170)}<div class="levelup-badge">${level}</div><h2>¡Subiste de nivel!</h2>
     <p>Ahora sos nivel <b>${level}</b>. ¡Seguí así, ${esc(state.profile?.name || '')}!</p><button class="btn btn-big btn-go" data-close>¡Yupi! 🎉</button></div>`);
 }
@@ -155,7 +156,7 @@ const SCREENS = {
     root.innerHTML = `<div class="screen onboarding">
       <div class="onb-card">
         <div class="onb-mascot">${mascot('happy', 200)}${bubble('¡Hola! Soy <b>Numi</b> 💜<br>Me encantan los números. ¿Cómo te llamás?', 'bubble-left')}</div>
-        <input class="name-input js-name" maxlength="16" value="${esc(state.profile?.name || 'Isabela')}" aria-label="Nombre" autocomplete="off">
+        <input class="name-input js-name" maxlength="16" value="${esc(state.profile?.name || 'Isabella')}" aria-label="Nombre" autocomplete="off">
         <p class="onb-sub">Elegí tu compañero:</p>
         <div class="avatars">${AVATARS.map((a) => `<button class="avatar-pick ${a === avatar ? 'on' : ''}" data-a="${a}">${a}</button>`).join('')}</div>
         <button class="btn btn-big btn-go js-ok">¡Listo! →</button>
@@ -170,7 +171,7 @@ const SCREENS = {
     });
     root.querySelector('.js-ok').addEventListener('click', () => {
       unlockAudio();
-      const name = root.querySelector('.js-name').value.trim() || 'Isabela';
+      const name = root.querySelector('.js-name').value.trim() || 'Isabella';
       state.profile = { name, avatar };
       save(state);
       sfx('levelup');
@@ -365,8 +366,8 @@ const SCREENS = {
       const f = state.facts[`m${Math.min(a, b)}x${Math.max(a, b)}`];
       if (!f || !f.seen) return 'unseen';
       if (f.box >= 4) return 'mastered';
-      if (f.box >= 2) return 'learning';
-      return 'weak';
+      if (f.box === 0 && f.correct < f.seen) return 'weak';
+      return 'learning';
     };
     const n = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     const counts = { mastered: 0, learning: 0, weak: 0, unseen: 0 };
@@ -492,6 +493,9 @@ const SCREENS = {
       <section class="panel"><h2>Ajustes</h2>
         <label class="set"><span>🔈 Sonidos</span><input type="checkbox" class="js-sound" ${s.sound ? 'checked' : ''}></label>
         <label class="set"><span>🗣️ Voz de Numi</span><input type="checkbox" class="js-voice" ${s.voice ? 'checked' : ''}></label>
+        <label class="set"><span>🎙️ Voz</span><span class="voice-pick"><select class="js-voicesel"></select><button class="btn btn-soft btn-sm js-try">▶ Probar</button></span></label>
+        <p class="small">En el iPad podés bajar voces más lindas (por ejemplo <b>Paulina</b> o <b>Mónica</b> “Mejorada”) en Ajustes › Accesibilidad › Contenido leído › Voces › Español. Después elegila acá.</p>
+        <label class="set"><span>✏️ Responder con Apple Pencil</span><input type="checkbox" class="js-pencil" ${s.pencil ? 'checked' : ''}></label>
         <label class="set"><span>🎯 Meta diaria</span><select class="js-goal">${[10, 20, 30, 50].map((g) => `<option ${g === s.dailyGoal ? 'selected' : ''}>${g}</option>`).join('')}</select></label>
         <label class="set"><span>🔓 Abrir todos los niveles</span><input type="checkbox" class="js-all" ${s.unlockAll ? 'checked' : ''}></label>
         <label class="set"><span>✏️ Nombre</span><input class="js-name" value="${esc(state.profile?.name || '')}" maxlength="16"></label>
@@ -510,6 +514,17 @@ const SCREENS = {
     const apply = () => { configureSound(s); save(state); };
     $('.js-sound').addEventListener('change', (e) => { s.sound = e.target.checked; apply(); });
     $('.js-voice').addEventListener('change', (e) => { s.voice = e.target.checked; apply(); });
+    const fillVoices = () => {
+      const vs = spanishVoices();
+      const cur = currentVoice();
+      $('.js-voicesel').innerHTML = `<option value="">Automática${cur ? ` (${esc(cur.name)})` : ''}</option>` +
+        vs.map((v) => `<option value="${esc(v.voiceURI)}" ${v.voiceURI === s.voiceURI ? 'selected' : ''}>${esc(v.name)} · ${esc(v.lang)}</option>`).join('');
+    };
+    fillVoices();
+    if ('speechSynthesis' in window) speechSynthesis.addEventListener?.('voiceschanged', fillVoices);
+    $('.js-voicesel').addEventListener('change', (e) => { s.voiceURI = e.target.value; apply(); });
+    $('.js-try').addEventListener('click', (e) => { e.preventDefault(); say(`¡Hola ${state.profile?.name || ''}! Soy Numi. ¿Practicamos las tablas?`, { force: true }); });
+    $('.js-pencil').addEventListener('change', (e) => { s.pencil = e.target.checked; apply(); });
     $('.js-goal').addEventListener('change', (e) => { s.dailyGoal = Number(e.target.value); apply(); });
     $('.js-all').addEventListener('change', (e) => { s.unlockAll = e.target.checked; apply(); });
     $('.js-name').addEventListener('change', (e) => { state.profile.name = e.target.value.trim() || state.profile.name; apply(); });

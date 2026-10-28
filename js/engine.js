@@ -281,9 +281,12 @@ export function buildSmart(state, n = 10, focusOp) {
 
 // Problemas para la carrera contrarreloj de una operación.
 export function speedSkill(state, op) {
-  const list = skillsOf(op).filter((s) => skillState(state, s.id).unlocked);
+  // La carrera es para hechos rápidos: se evitan las cuentas largas si hay otras.
+  const all = skillsOf(op).filter((s) => skillState(state, s.id).unlocked);
+  const fast = all.filter((s) => s.target <= 6);
+  const list = fast.length ? fast : all;
   const front = list[list.length - 1];
-  return (chance(0.6) ? front : pick(list)).id;
+  return (chance(0.5) ? front : pick(list)).id;
 }
 
 // ---------- Registro de respuestas ----------

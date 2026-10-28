@@ -164,3 +164,19 @@ test('nextSkill', () => {
   assert.equal(nextSkill('add1').id, 'add2');
   assert.equal(nextSkill('add7'), null);
 });
+
+test('la carrera usa hechos rápidos y no cuentas largas', async () => {
+  const { speedSkill } = await import('../js/engine.js');
+  const state = defaultState();
+  for (const id of ['mul1', 'mul2', 'mul3', 'mul9', 'mul10']) skillState(state, id).unlocked = true;
+  for (let i = 0; i < 300; i++) assert.notEqual(speedSkill(state, 'mul'), 'mul10');
+});
+
+test('explicaciones: resta pidiendo prestado a través de un cero', async () => {
+  const { explain } = await import('../js/visuals.js');
+  const p = makeProblem('sub7', 503, 127, 'input');
+  const html = explain(p).html;
+  assert.match(html, /376/);
+  assert.match(html, /9 − 2 = 7/);
+  assert.match(html, /4 − 1 = 3/);
+});
