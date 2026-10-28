@@ -9,7 +9,7 @@ import { AVATARS, STICKERS, RARITY, PACK_COST, BADGES, OUTFITS, MISSIONS, MISSIO
 import { dotArray } from './visuals.js';
 import { playScreen, BOSSES } from './game.js';
 import { balloonsScreen } from './balloons.js';
-import { inkPad, setPersonalTemplates } from './ink.js';
+import { inkPad, setPersonalTemplates, logSample, compact } from './ink.js';
 
 const host = document.getElementById('app');
 let state = load();
@@ -568,7 +568,7 @@ const SCREENS = {
 
   teach() {
     const root = app.root;
-    const order = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+    const order = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 4, 7, 8, 9, 1, 0, 2, 3, 5, 6, 4, 8, 7, 9];
     let i = 0;
     const samples = [];
     root.innerHTML = `<div class="screen teach">
@@ -591,7 +591,9 @@ const SCREENS = {
     root.querySelector('.js-next').addEventListener('click', () => {
       const strokes = pad.strokes().filter((st) => st.length > 1);
       if (!strokes.length) return;
-      samples.push({ digit: String(order[i]), strokes: strokes.map((st) => st.filter((_, k) => k % Math.ceil(st.length / 40) === 0).map((p) => ({ x: Math.round(p.x), y: Math.round(p.y) }))) });
+      const sample = { digit: String(order[i]), strokes: compact(strokes) };
+      samples.push(sample);
+      logSample(state, sample.digit, sample.strokes, 'teach');
       sfx('correct');
       confetti({ count: 20, x: innerWidth * 0.7, y: innerHeight * 0.5 });
       i++;
@@ -674,6 +676,10 @@ const SCREENS = {
         <label class="set"><span>🎙️ Voz</span><span class="voice-pick"><select class="js-voicesel"></select><button class="btn btn-soft btn-sm js-try">▶ Probar</button></span></label>
         <p class="small">En el iPad podés bajar voces más lindas (por ejemplo <b>Paulina</b> o <b>Mónica</b> “Mejorada”) en Ajustes › Accesibilidad › Contenido leído › Voces › Español. Después elegila acá.</p>
         <label class="set"><span>✏️ Responder con Apple Pencil</span><input type="checkbox" class="js-pencil" ${s.pencil ? 'checked' : ''}></label>
+        <label class="set"><span>🔍 Quién lee la letra</span><select class="js-engine">
+          <option value="apple" ${s.inkEngine !== 'numi' ? 'selected' : ''}>Apple (Scribble del iPad)</option>
+          <option value="numi" ${s.inkEngine === 'numi' ? 'selected' : ''}>Numi (aprende su letra)</option></select></label>
+        <p class="small">“Apple” usa la escritura a mano del iPad (tiene que estar activada en Ajustes › Apple Pencil › Scribble). “Numi” usa el reconocedor de la app, que mejora con “Enseñarle mi letra a Numi” y guarda muestras para mejorarlo.</p>
         <label class="set"><span>🎯 Meta diaria</span><select class="js-goal">${[10, 20, 30, 50].map((g) => `<option ${g === s.dailyGoal ? 'selected' : ''}>${g}</option>`).join('')}</select></label>
         <label class="set"><span>🔓 Abrir todos los niveles</span><input type="checkbox" class="js-all" ${s.unlockAll ? 'checked' : ''}></label>
         <label class="set"><span>✏️ Nombre</span><input class="js-name" value="${esc(state.profile?.name || '')}" maxlength="16"></label>
@@ -683,6 +689,7 @@ const SCREENS = {
           <button class="btn btn-soft js-teach">✏️ Enseñarle mi letra a Numi</button>
           <button class="btn btn-soft js-place">🧭 Repetir desafío inicial</button>
           <button class="btn btn-soft js-export">💾 Guardar copia</button>
+          <button class="btn btn-soft js-inkexport">📤 Exportar muestras de letra (${(state.inkLog || []).length})</button>
           <button class="btn btn-soft js-import">📂 Cargar copia</button>
           <button class="btn btn-danger js-reset">🗑️ Borrar todo</button>
         </div>
@@ -704,6 +711,18 @@ const SCREENS = {
     $('.js-voicesel').addEventListener('change', (e) => { s.voiceURI = e.target.value; apply(); });
     $('.js-try').addEventListener('click', (e) => { e.preventDefault(); say(`¡Hola ${state.profile?.name || ''}! Soy Numi. ¿Practicamos las tablas?`, { force: true }); });
     $('.js-pencil').addEventListener('change', (e) => { s.pencil = e.target.checked; apply(); });
+    $('.js-engine').addEventListener('change', (e) => { s.inkEngine = e.target.value; apply(); });
+    $('.js-inkexport').addEventListener('click', () => {
+      const data = JSON.stringify({ app: 'numi', kind: 'digit-samples', exported: new Date().toISOString(), samples: state.inkLog || [] });
+      const name = `numi-letra-${todayKey()}.json`;
+      const file = new File([data], name, { type: 'application/json' });
+      if (navigator.canShare?.({ files: [file] })) { navigator.share({ files: [file], title: 'Muestras de letra de Numi' }).catch(() => {}); return; }
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(file);
+      a.download = name;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    });
     $('.js-goal').addEventListener('change', (e) => { s.dailyGoal = Number(e.target.value); apply(); });
     $('.js-all').addEventListener('change', (e) => { s.unlockAll = e.target.checked; apply(); });
     $('.js-name').addEventListener('change', (e) => { state.profile.name = e.target.value.trim() || state.profile.name; apply(); });

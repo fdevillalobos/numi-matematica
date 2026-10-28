@@ -695,3 +695,12 @@ p { margin: 0.4em 0; line-height: 1.4; }
 .story-pic { font-size: 40px; }
 .st-box { padding: 6px 10px; }
 .play-mascot .js-mascot { cursor: pointer; }
+
+/* ---------- Scribble (escritura de Apple) ---------- */
+.scribble-wrap { position: relative; height: 380px; border-radius: 34px; background: #fff; border: 5px dashed var(--c); box-shadow: 0 10px 0 #E0D7F7, 0 16px 30px rgba(43, 33, 80, 0.12); overflow: hidden; }
+.scribble { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; outline: none; background: transparent; text-align: center;
+  font-size: 160px; font-weight: 900; color: var(--ink); font-family: var(--font); -webkit-user-select: text; user-select: text; caret-color: var(--c); padding: 0 20px; }
+.scribble-wrap .ink-hint { z-index: 1; }
+.scribble-wrap.used .ink-hint { opacity: 0; }
+.scribble-wrap.shake { animation: shake 0.5s; }
+@media (orientation: portrait) { .scribble-wrap { height: 360px; } }

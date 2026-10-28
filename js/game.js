@@ -8,7 +8,7 @@ import { sfx, say } from './sound.js';
 import { confetti, flyStar } from './fx.js';
 import { mascot, modal, esc } from './ui.js';
 import { PRAISE, COMBO_PRAISE, OOPS } from './data.js';
-import { inkPad, segment, setPersonalTemplates } from './ink.js';
+import { inkPad, segmentTo, setPersonalTemplates, logSample, compact } from './ink.js';
 
 const pickOne = (a) => a[Math.floor(Math.random() * a.length)];
 const SPEED_SECONDS = 60;
@@ -133,23 +133,37 @@ export function playScreen(app, session) {
     $('.js-combo').innerHTML = combo >= 2 ? `<span class="combo-badge ${combo >= 5 ? 'hot' : ''}">🔥 ${combo}</span>` : '';
   }
 
+  // Lo que lee Scribble puede venir con letras parecidas a números.
+  function toDigits(text) {
+    const map = { o: '0', O: '0', D: '0', l: '1', I: '1', i: '1', '|': '1', '!': '1', z: '2', Z: '2', s: '5', S: '5', b: '6', G: '6', T: '7', B: '8', g: '9', q: '9' };
+    return [...String(text)].map((c) => map[c] ?? c).join('').replace(/\D/g, '');
+  }
+
   // Problemas con historia y dibujitos (solo con números chicos).
-  const ITEMS = [['🍎', 'manzanas', 'f'], ['🍓', 'frutillas', 'f'], ['🧁', 'cupcakes', 'm'], ['🎈', 'globos', 'm'], ['🐟', 'pececitos', 'm'], ['🍪', 'galletitas', 'f'], ['🌸', 'flores', 'f'], ['⭐', 'estrellas', 'f']];
+  const ITEMS = [['🍎', 'manzana', 'manzanas', 'f'], ['🍓', 'frutilla', 'frutillas', 'f'], ['🧁', 'cupcake', 'cupcakes', 'm'], ['🎈', 'globo', 'globos', 'm'],
+    ['🐟', 'pececito', 'pececitos', 'm'], ['🍪', 'galletita', 'galletitas', 'f'], ['🌸', 'flor', 'flores', 'f'], ['⭐', 'estrella', 'estrellas', 'f']];
   const FRIENDS = ['Numi', 'Sofi', 'Tomi', 'la abuela', 'Mati', 'Lola'];
+  // "1 pececito", "3 pececitos": con 1 va en singular.
+  const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
   function storyHtml(p, box) {
     if (!p._story) {
-      const [emoji, word, g] = pickOne(ITEMS);
-      p._story = { emoji, word, g, who: pickOne([state.profile?.name || 'Isabella', ...FRIENDS]) };
+      const [emoji, one, many, g] = pickOne(ITEMS);
+      p._story = { emoji, one, many, g, who: pickOne([state.profile?.name || 'Isabella', ...FRIENDS]) };
     }
-    const { emoji, word, who, g } = p._story;
+    const { emoji, one, many, who, g } = p._story;
+    const word = many;
+    const it = (n) => count(n, one, many);
     const cuantas = g === 'f' ? 'Cuántas' : 'Cuántos';
     const rep = (n, cls = '') => `<span class="st-row ${cls}">${emoji.repeat(n)}</span>`;
     let text = '';
     let pic = '';
-    if (p.op === 'add') { text = `${esc(who)} tiene ${p.a} ${word} y le regalan ${p.b} más. ¿${cuantas} tiene ahora?`; pic = rep(p.a) + '<b>+</b>' + rep(p.b); }
-    else if (p.op === 'sub') { text = `Había ${p.a} ${word} y ${esc(who)} se llevó ${p.b}. ¿${cuantas} quedan?`; pic = `<span class="st-row">${emoji.repeat(p.a - p.b)}<s>${emoji.repeat(p.b)}</s></span>`; }
-    else if (p.op === 'mul') { text = `Hay ${p.a} cajitas con ${p.b} ${word} cada una. ¿${cuantas} ${word} hay en total?`; pic = Array.from({ length: p.a }, () => `<span class="st-box">${emoji.repeat(p.b)}</span>`).join(''); }
-    else { text = `${esc(who)} reparte ${p.a} ${word} entre ${p.b} amigos, todos iguales. ¿${cuantas} le tocan a cada uno?`; pic = rep(p.a); }
+    if (p.op === 'add') { text = `${esc(who)} tiene ${it(p.a)} y le regalan ${p.b} más. ¿${cuantas} tiene ahora?`; pic = rep(p.a) + '<b>+</b>' + rep(p.b); }
+    else if (p.op === 'sub') { text = `Había ${it(p.a)} y ${esc(who)} se llevó ${p.b}. ¿${cuantas} quedan?`; pic = `<span class="st-row">${emoji.repeat(p.a - p.b)}<s>${emoji.repeat(p.b)}</s></span>`; }
+    else if (p.op === 'mul') { text = `Hay ${count(p.a, 'cajita', 'cajitas')} con ${it(p.b)} ${p.a === 1 ? 'adentro' : 'cada una'}. ¿${cuantas} ${word} hay en total?`; pic = Array.from({ length: p.a }, () => `<span class="st-box">${emoji.repeat(p.b)}</span>`).join(''); }
+    else {
+      text = p.b === 1 ? `${esc(who)} le da ${it(p.a)} a 1 amigo. ¿${cuantas} le tocan?` : `${esc(who)} reparte ${it(p.a)} entre ${p.b} amigos, todos iguales. ¿${cuantas} le tocan a cada uno?`;
+      pic = rep(p.a);
+    }
     p._storyText = text;
     return `<div class="story"><p class="story-text">${text}</p><div class="story-pic">${pic}</div><div class="story-ans">${box}</div></div>`;
   }
@@ -180,10 +194,31 @@ export function playScreen(app, session) {
     const el = $('.js-input');
     pad?.destroy();
     pad = null;
+    if (current.format === 'draw' && state.settings.inkEngine !== 'numi') {
+      // Escritura de Apple (Scribble): iPadOS convierte lo que escribe con el lápiz en números.
+      el.innerHTML = `<div class="ink"><div class="scribble-wrap"><input class="scribble js-scribble" type="text" inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" aria-label="Escribí la respuesta con el lápiz">
+          <span class="ink-hint">✏️ Escribí la respuesta acá</span></div>
+        <div class="ink-btns"><button class="key key-del js-ink-clear" aria-label="Borrar">🧽</button><button class="key key-ok js-ink-ok" aria-label="Listo">✓</button></div></div>`;
+      const field = el.querySelector('.js-scribble');
+      const sync = () => {
+        input = toDigits(field.value).slice(0, 4);
+        field.closest('.scribble-wrap').classList.toggle('used', !!field.value);
+        updateAnswer();
+      };
+      field.addEventListener('input', sync);
+      field.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); sync(); if (input) check(input); } });
+      el.querySelector('.js-ink-clear').addEventListener('click', () => { sfx('pop'); field.value = ''; sync(); });
+      el.querySelector('.js-ink-ok').addEventListener('click', () => {
+        sync();
+        if (input) { field.blur(); check(input); }
+        else { const w = el.querySelector('.scribble-wrap'); w.classList.remove('shake'); void w.offsetWidth; w.classList.add('shake'); }
+      });
+      return;
+    }
     if (current.format === 'draw') {
       el.innerHTML = `<div class="ink"><div class="js-pad"></div>
         <div class="ink-btns"><button class="key key-del js-ink-clear" aria-label="Borrar">🧽</button><button class="key key-ok js-ink-ok" aria-label="Listo">✓</button></div></div>`;
-      pad = inkPad(el.querySelector('.js-pad'), { onChange: (t) => { input = t.slice(0, 4); updateAnswer(); } });
+      pad = inkPad(el.querySelector('.js-pad'), { expected: String(current.answer).length, onChange: (t) => { input = t.slice(0, 4); updateAnswer(); } });
       el.querySelector('.js-ink-clear').addEventListener('click', () => { sfx('pop'); pad.clear(); });
       el.querySelector('.js-ink-ok').addEventListener('click', () => {
         input = pad.flush().slice(0, 4);
@@ -280,15 +315,16 @@ export function playScreen(app, session) {
   // Guarda su letra: cada cifra confirmada como correcta queda como plantilla propia.
   function learnInk(p) {
     if (p.format !== 'draw' || !pad) return;
-    const groups = segment(pad.strokes());
+    const groups = segmentTo(pad.strokes(), String(p.answer).length);
     const digits = String(p.answer);
     if (groups.length !== digits.length) return;
     state.ink ||= [];
     groups.forEach((g, i) => {
-      const strokes = g.strokes.map((st) => st.filter((_, k) => k % Math.ceil(st.length / 40 || 1) === 0).map((pt) => ({ x: Math.round(pt.x), y: Math.round(pt.y) })));
+      const strokes = compact(g.strokes);
+      logSample(state, digits[i], strokes, 'answer');
       state.ink.push({ digit: digits[i], strokes });
       const mine = state.ink.filter((t) => t.digit === digits[i]);
-      if (mine.length > 4) state.ink.splice(state.ink.indexOf(mine[0]), 1);
+      if (mine.length > 5) state.ink.splice(state.ink.indexOf(mine[0]), 1);
     });
     setPersonalTemplates(state.ink);
   }
@@ -523,6 +559,7 @@ export function playScreen(app, session) {
     if (e.target.closest('.js-say') && current) say(current.story ? current._storyText : speakProblem(current), { force: true });
   });
   const keyHandler = (e) => {
+    if (e.target.closest?.('input, textarea')) return; // lo maneja el propio campo
     if (document.querySelector('.modal-wrap')) {
       if (e.key === 'Enter') document.querySelector('.modal-wrap [data-close].btn')?.click();
       return;

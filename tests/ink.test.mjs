@@ -53,3 +53,42 @@ test('separa y lee números de varias cifras', () => {
   }
   assert.ok(ok >= cases.length - 1, `${ok}/${cases.length}`);
 });
+
+// Cómo los escriben los chicos de verdad (feedback de Isabella y su papá).
+const KID = {
+  4: () => [[...line(0.15, 0.02, 0.1, 0.6), ...line(0.1, 0.6, 0.76, 0.62)], line(0.66, 0.08, 0.68, 1)], // 4 abierto, el palito no sobresale
+  '4b': () => [[...line(0.18, 0.02, 0.12, 0.58), ...line(0.12, 0.58, 0.88, 0.6), ...line(0.88, 0.6, 0.7, 0.2), ...line(0.7, 0.2, 0.72, 1)]], // de un trazo
+  8: () => [Array.from({ length: 41 }, (_, i) => { const t = (i / 40) * 2 * Math.PI; return { x: 0.5 + 0.6 * Math.sin(t) * Math.cos(t), y: 0.5 - 0.5 * Math.cos(t) }; })], // 8 continuo
+  7: () => [[...line(0.03, 0.03, 0.97, 0.02), ...line(0.97, 0.02, 0.42, 1)], line(0.4, 0.5, 0.92, 0.52)], // 7 tachado
+  9: () => [[...arc(0.48, 0.26, 0.3, 0.24, -10, 345), ...line(0.78, 0.2, 0.77, 1)]], // 9 con palito recto
+};
+
+test('reconoce el 4 abierto, el 8 de un trazo, el 7 tachado y el 9', () => {
+  const misses = [];
+  let ok = 0, total = 0;
+  for (let k = 0; k < 25; k++) {
+    for (const [key, f] of Object.entries(KID)) {
+      const d = key[0];
+      const r = recognize(distort(f()), 1).text;
+      total++;
+      if (r === d) ok++; else misses.push(`${key}->${r}`);
+    }
+  }
+  console.log(`niños: ${Math.round((ok / total) * 100)}%`, misses.slice(0, 12).join(' '));
+  assert.ok(ok / total >= 0.9, `${ok}/${total}`);
+});
+
+test('números de dos cifras con letra de chicos', () => {
+  const cases = [['47', ['4', '7']], ['84', ['8', '4']], ['49', ['4', '9']], ['78', ['7', '8']], ['74', ['7', '4']], ['14', ['1', '4']]];
+  const all = { ...HAND, ...KID };
+  let ok = 0;
+  for (const [n, parts] of cases) {
+    for (let rep = 0; rep < 5; rep++) {
+      const strokes = [];
+      parts.forEach((d, i) => strokes.push(...distort(all[d](), i * 170)));
+      const r = recognize(strokes, n.length).text;
+      if (r === n) ok++; else console.log('falló', n, '→', r);
+    }
+  }
+  assert.ok(ok >= cases.length * 5 * 0.85, `${ok}/${cases.length * 5}`);
+});

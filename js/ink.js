@@ -45,6 +45,36 @@ const SHAPES = {
       [arc(0.45, 0.28, 0.33, 0.28, 0, 360), line(0.78, 0.05, 0.75, 1)]],
 };
 
+// Variantes "como escriben los chicos" (las que fallaban con letra real).
+const fig8 = (cx, top, bot, w, n = 40) => Array.from({ length: n + 1 }, (_, i) => {
+  // un 8 de un solo trazo: arranca arriba a la derecha, cruza por el medio y vuelve
+  const t = (i / n) * 2 * Math.PI;
+  return { x: cx + w * Math.sin(t) * Math.cos(t) * 2, y: top + (bot - top) * (0.5 - 0.5 * Math.cos(t)) };
+});
+SHAPES[4].push(
+  // 4 abierto: una "L" y el palito de la derecha que no sobresale
+  [cat(line(0.12, 0, 0.08, 0.6), line(0.08, 0.6, 0.78, 0.6)), line(0.68, 0.05, 0.68, 1)],
+  [cat(line(0.2, 0, 0.1, 0.62), line(0.1, 0.62, 0.9, 0.6)), line(0.62, 0.2, 0.62, 1)],
+  // 4 de un solo trazo: baja, va a la derecha, sube y baja por el palito
+  [cat(line(0.15, 0, 0.1, 0.6), line(0.1, 0.6, 0.85, 0.6), line(0.85, 0.6, 0.7, 0.15), line(0.7, 0.15, 0.7, 1))],
+  // 4 cerrado de un trazo empezando por el palito
+  [cat(line(0.7, 0, 0.1, 0.62), line(0.1, 0.62, 0.95, 0.62)), line(0.7, 0, 0.7, 1)],
+);
+SHAPES[8].push([fig8(0.5, 0, 1, 0.32)], [fig8(0.5, 0, 1, 0.26)], [cat(fig8(0.5, 0, 1, 0.3), line(0.5, 0, 0.62, 0.02))]);
+SHAPES[7].push(
+  // 7 tachado: el palito del medio cruza la diagonal
+  [cat(line(0.02, 0.02, 0.98, 0), line(0.98, 0, 0.4, 1)), line(0.38, 0.52, 0.95, 0.5)],
+  [cat(line(0.02, 0.02, 0.98, 0), line(0.98, 0, 0.5, 1)), line(0.45, 0.48, 1, 0.48)],
+  [line(0.38, 0.52, 0.95, 0.5), cat(line(0.02, 0.02, 0.98, 0), line(0.98, 0, 0.4, 1))],
+);
+SHAPES[9].push(
+  [cat(arc(0.5, 0.25, 0.3, 0.25, -20, 340), line(0.79, 0.17, 0.79, 1))],
+  [cat(arc(0.48, 0.3, 0.32, 0.28, 10, 370), quad(0.8, 0.3, 0.82, 0.9, 0.6, 1))],
+  [cat(arc(0.45, 0.3, 0.35, 0.3, 0, 330), line(0.78, 0.15, 0.6, 1))],
+);
+SHAPES[1].push([cat(line(0.2, 0.3, 0.55, 0), line(0.55, 0, 0.55, 1))]);
+SHAPES[2].push([cat(arc(0.5, 0.25, 0.35, 0.25, 180, 400), line(0.78, 0.4, 0.08, 1), quad(0.08, 1, 0.3, 0.85, 0.95, 1))]);
+
 // ---------- $P ----------
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
@@ -160,13 +190,33 @@ export function segment(strokes) {
   return groups;
 }
 
-export function recognize(strokes) {
-  const groups = segment(strokes);
+// Si sabemos cuántas cifras tiene la respuesta y quedaron grupos de más,
+// juntamos los grupos más pegados (p. ej. el palito del 4 o la rayita del 7).
+function mergeToCount(groups, count) {
+  const gs = groups.slice();
+  while (count && gs.length > count) {
+    let best = -1, bestGap = Infinity;
+    for (let i = 0; i < gs.length - 1; i++) {
+      const gap = gs[i + 1].b.x0 - gs[i].b.x1;
+      if (gap < bestGap) { bestGap = gap; best = i; }
+    }
+    const h = Math.max(...gs.map((g) => bbox(g.strokes.flat()).h)) || 1;
+    if (bestGap > h * 0.35) break; // están lejos: son cifras distintas
+    const a = gs[best], b = gs[best + 1];
+    gs.splice(best, 2, { strokes: a.strokes.concat(b.strokes), b: { x0: Math.min(a.b.x0, b.b.x0), x1: Math.max(a.b.x1, b.b.x1), w: Math.max(a.b.x1, b.b.x1) - Math.min(a.b.x0, b.b.x0) } });
+  }
+  return gs;
+}
+
+export const segmentTo = (strokes, expected = 0) => mergeToCount(segment(strokes), expected);
+
+export function recognize(strokes, expected = 0) {
+  const groups = segmentTo(strokes, expected);
   return { text: groups.map((g) => recognizeDigit(g.strokes)?.digit ?? '').join(''), groups };
 }
 
 // ---------- lienzo ----------
-export function inkPad(container, { onChange }) {
+export function inkPad(container, { onChange, expected = 0 }) {
   container.innerHTML = `<div class="ink-pad"><canvas></canvas><span class="ink-hint">✏️ Escribí la respuesta acá</span></div>`;
   const pad = container.querySelector('.ink-pad');
   const canvas = pad.querySelector('canvas');
@@ -200,7 +250,7 @@ export function inkPad(container, { onChange }) {
   const pos = (e) => { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
 
   let activeId = null;
-  const read = () => (strokes.length ? recognize(strokes).text : '');
+  const read = () => (strokes.length ? recognize(strokes, expected).text : '');
   canvas.addEventListener('pointerdown', (e) => {
     if (cur) return; // ya hay un trazo en curso (otro dedo o la palma)
     if (e.pointerType === 'pen') penSeen = true;
@@ -248,3 +298,14 @@ export function inkPad(container, { onChange }) {
     destroy() { clearTimeout(timer); removeEventListener('resize', size); },
   };
 }
+
+// Guarda una muestra etiquetada (para exportar y entrenar con letra real de chicos).
+export function logSample(state, digit, strokes, src) {
+  state.inkLog ||= [];
+  state.inkLog.push({ d: String(digit), s: strokes, src, t: Date.now() });
+  if (state.inkLog.length > 600) state.inkLog.splice(0, state.inkLog.length - 600);
+}
+
+// Achica un trazo a ~40 puntos enteros para guardarlo.
+export const compact = (strokes) => strokes.filter((st) => st.length > 1)
+  .map((st) => st.filter((_, k) => k % Math.max(1, Math.ceil(st.length / 40)) === 0).map((p) => ({ x: Math.round(p.x), y: Math.round(p.y) })));

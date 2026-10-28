@@ -6,7 +6,7 @@ export function defaultState() {
   const s = {
     version: 1,
     profile: null, // { name, avatar }
-    settings: { sound: true, voice: true, voiceURI: '', dailyGoal: 20, unlockAll: false, pencil: true },
+    settings: { sound: true, voice: true, voiceURI: '', dailyGoal: 20, unlockAll: false, pencil: true, inkEngine: 'apple' },
     stars: 0,
     xp: 0,
     skills: {},
@@ -19,6 +19,7 @@ export function defaultState() {
     totals: { problems: 0, correct: 0, lessons: 0, perfect: 0, bestCombo: 0, packs: 0 },
     placementDone: false,
     ink: [],
+    inkLog: [], // muestras de letra etiquetadas, para mejorar el reconocedor
     owned: {},
     outfit: {},
     lastChest: null,
